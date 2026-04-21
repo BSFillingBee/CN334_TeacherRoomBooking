@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}รายการจองของฉัน - ระบบจองห้อง EE & CE{% endblock %}
+
+{% block content %}
+<div class="header-content" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <h1>รายการจองของฉัน</h1>
+    <a href="/bookings/new/" class="btn btn-primary">จองห้องใหม่</a>
+</div>
+
+<div class="card">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ห้อง</th>
+                    <th>วัตถุประสงค์</th>
+                    <th>วันที่ใช้งาน</th>
+                    <th>เวลา</th>
+                    <th>สถานะ</th>
+                    <th>การจัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td><strong>{{ booking.room.code }}</strong></td>
+                    <td>
+                        {% if booking.purpose_type == 'TEACHING' %}
+                            {{ booking.course_name }} ({{ booking.course_id }})
+                        {% else %}
+                            {{ booking.topic }}
+                        {% endif %}
+                        <br>
+                        <small style="color: var(--text-secondary);">ประเภท: {{ booking.get_purpose_type_display }}</small>
+                    </td>
+                    <td>
+                        {{ booking.start_date }} - {{ booking.end_date }}
+                        <br>
+                        <small style="color: var(--primary-color);">
+                            (
+                            {% if '0' in booking.days_of_week %}จ.{% endif %}
+                            {% if '1' in booking.days_of_week %}อ.{% endif %}
+                            {% if '2' in booking.days_of_week %}พ.{% endif %}
+                            {% if '3' in booking.days_of_week %}พฤ.{% endif %}
+                            {% if '4' in booking.days_of_week %}ศ.{% endif %}
+                            )
+                        </small>
+                    </td>
+                    <td>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }} น.</td>
+                    <td>
+                        <span class="badge badge-{% if booking.status == 'PENDING' %}pending{% elif booking.status == 'APPROVED' %}approved{% elif booking.status == 'REJECTED' %}rejected{% else %}rejected{% endif %}">
+                            {{ booking.get_status_display }}
+                        </span>
+                        {% if booking.rejection_reason %}
+                            <div style="font-size: 0.75rem; color: var(--danger); margin-top: 0.25rem;">เหตุผล: {{ booking.rejection_reason }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if booking.status == 'PENDING' %}
+                            <form action="{% url 'booking_cancel' booking.id %}" method="post" onsubmit="return confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการจองนี้?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn" style="background: transparent; color: var(--danger); padding: 0;">ยกเลิก</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 3rem;">คุณยังไม่เคยทำรายการจอง</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}รายการห้อง - ระบบจองห้อง EE & CE{% endblock %}
+
+{% block content %}
+<div class="header-content" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1>รายการห้องประชุมและห้องเรียน</h1>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+    {% for room in rooms %}
+        <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="height: 180px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                {% if room.image %}
+                    <img src="{{ room.image.url }}" alt="{{ room.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                {% endif %}
+            </div>
+            <div style="padding: 1.5rem; flex-grow: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                    <span class="badge badge-pending" style="background: #e0f2fe; color: #0369a1; font-size: 0.75rem;">
+                        {{ room.get_room_type_display }}
+                    </span>
+                    <span style="font-weight: 600; color: var(--text-secondary);">{{ room.capacity }} ที่นั่ง</span>
+                </div>
+                <h3 style="margin-bottom: 0.25rem;">{{ room.code }}</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">{{ room.name }}</p>
+                
+                <a href="/bookings/new/?room={{ room.id }}" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    จองห้องนี้
+                </a>
+            </div>
+        </div>
+    {% empty %}
+        <p>ไม่พบข้อมูลห้องในระบบ</p>
+    {% endfor %}
+</div>
+{% endblock %}

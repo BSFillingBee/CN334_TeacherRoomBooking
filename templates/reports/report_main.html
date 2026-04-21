@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}รายงานสถิติ - Admin{% endblock %}
+
+{% block content %}
+<div class="header-content" style="margin-bottom: 2rem;">
+    <h1>รายงานสถิติการใช้งานห้อง</h1>
+    <p style="color: var(--text-secondary);">ข้อมูลสถิติการใช้งานสำหรับห้องประชุมและห้องเรียนทั้งหมด</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+    {% for stat in room_stats %}
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <div>
+                <h2 style="color: var(--primary-color);">{{ stat.room.code }}</h2>
+                <p style="color: var(--text-secondary);">{{ stat.room.name }}</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 1.5rem; font-weight: 600;">{{ stat.count }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">จำนวนครั้งที่จอง</div>
+            </div>
+        </div>
+        
+        <div style="margin: 1.5rem 0;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                <span>อัตราการใช้งาน (Utilization)</span>
+                <span style="font-weight: 600;">{{ stat.utilization }}%</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                <div style="width: {{ stat.utilization }}%; height: 100%; background: var(--primary-color);"></div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9;">
+            <div>
+                <div style="color: var(--text-secondary); font-size: 0.8rem;">ชั่วโมงการใช้งานรวม</div>
+                <div style="font-weight: 600;">{{ stat.hours }} ชม.</div>
+            </div>
+            <div>
+                <div style="color: var(--text-secondary); font-size: 0.8rem;">ประเภทหลัก</div>
+                <div style="font-weight: 600;">{{ stat.room.get_room_type_display }}</div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

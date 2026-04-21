@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}เข้าสู่ระบบ - ระบบจองห้อง EE & CE{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+    <div class="card" style="width: 100%; max-width: 400px; padding: 2.5rem;">
+        <h2 style="margin-bottom: 0.5rem; text-align: center;">เข้าสู่ระบบ</h2>
+        <p style="color: var(--text-secondary); text-align: center; margin-bottom: 2rem; font-size: 0.9rem;">
+            กรุณาใช้บัญชี TU Account เพื่อเข้าใช้งาน
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div style="margin-bottom: 1.5rem;">
+                <label for="username" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">ชื่อผู้ใช้งาน (TU ID)</label>
+                <input type="text" name="username" id="username" required 
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">รหัสผ่าน</label>
+                <input type="password" name="password" id="password" required 
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.8rem;">
+                เข้าสู่ระบบ
+            </button>
+        </form>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #f1f5f9; font-size: 0.85rem; color: var(--text-secondary);">
+            <p><strong>หมายเหตุ:</strong> ระบบนี้ใช้การยืนยันตัวตนผ่าน TU REST API โดยตรง ข้อมูลรหัสผ่านของคุณจะไม่ถูกจัดเก็บไว้ในฐานข้อมูลของระบบ</p>
+            {% if mock_enabled %}
+            <p style="margin-top: 0.5rem; color: var(--primary-color);">* ระบบอยู่ในโหมด Mock สามารถใช้ password "tu1234" เพื่อทดสอบ</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

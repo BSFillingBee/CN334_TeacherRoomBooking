@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}ตารางการใช้ห้อง - ระบบจองห้อง EE & CE{% endblock %}
+
+{% block extra_css %}
+<style>
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background: #ced4da;
+        border: 1px solid #ced4da;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+    .calendar-day-header {
+        background: #f1f5f9;
+        padding: 1.5rem 1rem;
+        text-align: center;
+        font-weight: 700;
+        color: var(--accent-color);
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .calendar-day-cell {
+        background: white;
+        min-height: 600px;
+        padding: 1rem 0.75rem;
+    }
+    .booking-item {
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+        border-left: 5px solid transparent;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+        cursor: default;
+    }
+    .booking-item:hover {
+        transform: scale(1.02);
+        box-shadow: var(--shadow-md);
+    }
+    .booking-approved {
+        background: #ecfdf5;
+        color: #065f46;
+        border-left-color: var(--success);
+    }
+    .booking-pending {
+        background: #fffbeb;
+        color: #92400e;
+        border-left-color: var(--pending);
+    }
+    .room-filter {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    @media (max-width: 1024px) {
+        .calendar-grid {
+            grid-template-columns: 1fr;
+        }
+        .calendar-day-cell {
+            min-height: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-content" style="margin-bottom: 2rem;">
+    <h1>ปฏิทินงานใช้งานห้องประจำสัปดาห์</h1>
+    <p style="color: var(--text-secondary);">เริ่มต้นสัปดาห์วันที่ {{ days.0.date }}</p>
+</div>
+
+<div class="room-filter">
+    <a href="/calendar/" class="btn {% if not selected_room %}btn-primary{% else %}btn-outline{% endif %}" style="{% if selected_room %}background: #eee;{% endif %}">ทั้งหมด</a>
+    {% for room in rooms %}
+        <a href="/calendar/?room={{ room.id }}" class="btn {% if selected_room.id == room.id %}btn-primary{% else %}btn-outline{% endif %}" style="{% if selected_room.id != room.id %}background: #eee;{% endif %}">
+            {{ room.code }}
+        </a>
+    {% endfor %}
+</div>
+
+<div class="calendar-grid">
+    {% for day in days %}
+    <div class="calendar-day-header">
+        <div style="font-size: 0.75rem;">{{ day.name }}</div>
+        <div>{{ day.date|date:"d M" }}</div>
+    </div>
+    {% endfor %}
+
+    {% for day in days %}
+    <div class="calendar-day-cell">
+        {% for booking in day.bookings %}
+        <div class="booking-item {% if booking.status == 'APPROVED' %}booking-approved{% else %}booking-pending{% endif %}">
+            <div style="font-weight: 600;">{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">
+                โดย: {{ booking.requester.first_name|default:booking.requester.username }}
+            </div>
+            <div>{{ booking.room.code }}</div>
+            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {% if booking.purpose_type == 'TEACHING' %}
+                    {{ booking.course_id }}
+                {% else %}
+                    {{ booking.topic }}
+                {% endif %}
+            </div>
+            {% if booking.status == 'PENDING' %}
+            <div style="font-size: 0.7rem; font-style: italic;">(รออนุมัติ)</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

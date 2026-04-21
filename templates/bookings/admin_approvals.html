@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}อนุมัติการจอง - Admin{% endblock %}
+
+{% block content %}
+<div class="header-content" style="margin-bottom: 2rem;">
+    <h1>จัดการการจองที่รอการอนุมัติ</h1>
+    <p style="color: var(--text-secondary);">เจ้าหน้าสามารถตรวจสอบและดำเนินการอนุมัติหรือปฏิเสธรายการจองได้ที่นี่</p>
+</div>
+
+<div class="card">
+    <h3>รายการรออนุมัติ ({{ pending_bookings|length }})</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ผู้จอง</th>
+                    <th>ห้อง</th>
+                    <th>วัตถุประสงค์</th>
+                    <th>วันที่/เวลา</th>
+                    <th>การดำเนินการ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in pending_bookings %}
+                <tr>
+                    <td>
+                        <strong>{{ booking.requester.first_name|default:booking.requester.username }}</strong>
+                        <br>
+                        <small>{{ booking.requester.email }}</small>
+                    </td>
+                    <td><strong>{{ booking.room.code }}</strong></td>
+                    <td>
+                        {% if booking.purpose_type == 'TEACHING' %}
+                            {{ booking.course_name }} ({{ booking.course_id }})
+                        {% else %}
+                            {{ booking.topic }}
+                        {% endif %}
+                        <br>
+                        <small>ประเภท: {{ booking.get_purpose_type_display }}</small>
+                    </td>
+                    <td>
+                        {{ booking.start_date }} - {{ booking.end_date }}
+                        <br>
+                        {{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }} น.
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <form action="{% url 'admin_approve_reject' booking.id %}" method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="btn btn-primary" style="background: var(--success); font-size: 0.8rem;">อนุมัติ</button>
+                            </form>
+                            
+                            <button class="btn" style="background: var(--danger); color: white; font-size: 0.8rem;" onclick="showRejectModal('{{ booking.id }}')">ปฏิเสธ</button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 3rem;">ไม่มีรายการที่รอการอนุมัติ</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 3rem;">
+    <h3>ประวัติการดำเนินการล่าสุด</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ห้อง</th>
+                    <th>ผู้จอง</th>
+                    <th>วันที่ใช้งาน</th>
+                    <th>สถานะ</th>
+                    <th>ดำเนินการเมื่อ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in history_bookings %}
+                <tr>
+                    <td>{{ booking.room.code }}</td>
+                    <td>{{ booking.requester.username }}</td>
+                    <td>{{ booking.start_date }}</td>
+                    <td>
+                        <span class="badge badge-{% if booking.status == 'APPROVED' %}approved{% else %}rejected{% endif %}">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ booking.updated_at|date:"d/m/Y H:i" }} น.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Reject Modal (Simple version) -->
+<div id="rejectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;">
+    <div class="card" style="width: 100%; max-width: 400px;">
+        <h3>ระบุเหตุผลที่ปฏิเสธ</h3>
+        <form id="rejectForm" method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <textarea name="reason" style="width: 100%; height: 100px; margin: 1rem 0; padding: 0.5rem; border-radius: 8px; border: 1px solid #ddd;" placeholder="เหตุผล..." required></textarea>
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="background: var(--danger);">ยืนยันการปฏิเสธ</button>
+                <button type="button" class="btn" onclick="hideRejectModal()" style="background: #eee;">ยกเลิก</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const modal = document.getElementById('rejectModal');
+    const form = document.getElementById('rejectForm');
+
+    function showRejectModal(id) {
+        form.action = `/bookings/admin/approve/${id}/`;
+        modal.style.display = 'flex';
+    }
+
+    function hideRejectModal() {
+        modal.style.display = 'none';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - ระบบจองห้อง EE & CE{% endblock %}
+
+{% block content %}
+<div class="header-content" style="margin-bottom: 3rem;">
+    <h1>ยินดีต้อนรับสู่ระบบจองห้อง EE & CE</h1>
+    <p>ภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์ มหาวิทยาลัยธรรมศาสตร์</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 3rem;">
+    <!-- Quick Actions -->
+    <a href="/bookings/new/" class="card" style="text-decoration: none; border-left: 6px solid var(--primary-color); display: flex; flex-direction: column; gap: 1rem; padding: 2.5rem;">
+        <h3 style="margin-bottom: 0.5rem; color: var(--primary-color);">จองห้องใหม่</h3>
+        <p style="color: var(--text-secondary);">เริ่มต้นการส่งคำขอจองห้องประชุมหรือห้องเรียน</p>
+        <span class="btn btn-primary" style="align-self: flex-start; margin-top: 1rem;">ดำเนินการจอง</span>
+    </a>
+
+    <a href="/calendar/" class="card" style="text-decoration: none; border-left: 6px solid var(--secondary-color); display: flex; flex-direction: column; gap: 1rem; padding: 2.5rem;">
+        <h3 style="margin-bottom: 0.5rem; color: #b45309;">ตรวจสอบตาราง</h3>
+        <p style="color: var(--text-secondary);">ดูปฏิทินการใช้ห้องประจำสัปดาห์และความว่างของห้อง</p>
+        <span class="btn btn-outline" style="align-self: flex-start; margin-top: 1rem;">ดูปฏิทิน</span>
+    </a>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h2 style="margin: 0; font-size: 1.75rem;">รายการจองล่าสุดของคุณ</h2>
+        <a href="/bookings/my/" style="color: var(--primary-color); font-weight: 600; text-decoration: none; font-size: 0.95rem;">ดูทั้งหมด →</a>
+    </div>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ห้อง</th>
+                    <th>วันที่</th>
+                    <th>เวลา</th>
+                    <th>สถานะ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in recent_bookings %}
+                <tr>
+                    <td><strong style="color: var(--primary-color);">{{ booking.room.code }}</strong></td>
+                    <td>{{ booking.start_date|date:"d M Y" }}</td>
+                    <td>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }} น.</td>
+                    <td>
+                        <span class="badge badge-{% if booking.status == 'PENDING' %}pending{% elif booking.status == 'APPROVED' %}approved{% else %}rejected{% endif %}">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        ยังไม่มีประวัติการจองล่าสุด
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
