@@ -23,10 +23,10 @@ def booking_create(request):
             selected_days = form.cleaned_data.get('selected_days')
             booking.days_of_week = ','.join(selected_days)
             
-            # Conflict Detection
+            # Conflict Detection: Check both APPROVED and PENDING statuses
             conflicts = Booking.objects.filter(
                 room=booking.room,
-                status='APPROVED',
+                status__in=['APPROVED', 'PENDING'],
                 start_date__lte=booking.end_date,
                 end_date__gte=booking.start_date,
                 start_time__lt=booking.end_time,
@@ -102,14 +102,37 @@ def admin_approve_reject(request, pk):
         reason = request.POST.get('reason', '')
         
         if action == 'approve':
-            booking.status = 'APPROVED'
-            messages.success(request, f"อนุมัติการจองห้อง {booking.room.code} เรียบร้อยแล้ว")
+            # Final Conflict Check before approving
+            conflicts = Booking.objects.filter(
+                room=booking.room,
+                status='APPROVED',
+                start_date__lte=booking.end_date,
+                end_date__gte=booking.start_date,
+                start_time__lt=booking.end_time,
+                end_time__gt=booking.start_time
+            ).exclude(id=booking.id)
+            
+            # Check for day intersection
+            has_conflict = False
+            for existing in conflicts:
+                existing_days = set(existing.get_days_list())
+                new_days = set(booking.get_days_list())
+                if existing_days.intersection(new_days):
+                    has_conflict = True
+                    break
+            
+            if has_conflict:
+                messages.error(request, "ไม่สามารถอนุมัติได้ เนื่องจากมีการจองอื่นที่ทับซ้อนกันได้รับการอนุมัติไปก่อนหน้านี้แล้ว")
+            else:
+                booking.status = 'APPROVED'
+                messages.success(request, f"อนุมัติการจองห้อง {booking.room.code} เรียบร้อยแล้ว")
         elif action == 'reject':
             booking.status = 'REJECTED'
             booking.rejection_reason = reason
             messages.success(request, f"ปฏิเสธการจองห้อง {booking.room.code} เรียบร้อยแล้ว")
             
-        booking.save()
-        send_booking_status_update(booking)
+        if not (action == 'approve' and has_conflict):
+            booking.save()
+            send_booking_status_update(booking)
         
     return redirect('admin_approval_list')

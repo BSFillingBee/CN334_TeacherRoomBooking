@@ -21,6 +21,14 @@
         <p style="color: var(--text-secondary);">ดูปฏิทินการใช้ห้องประจำสัปดาห์และความว่างของห้อง</p>
         <span class="btn btn-outline" style="align-self: flex-start; margin-top: 1rem;">ดูปฏิทิน</span>
     </a>
+
+    {% if user.is_admin %}
+    <a href="/bookings/admin/approvals/" class="card" style="text-decoration: none; border-left: 6px solid var(--success); display: flex; flex-direction: column; gap: 1rem; padding: 2.5rem;">
+        <h3 style="margin-bottom: 0.5rem; color: var(--success);">จัดการการจอง</h3>
+        <p style="color: var(--text-secondary);">ตรวจสอบและดำเนินการอนุมัติรายการจองที่ค้างอยู่</p>
+        <span class="btn" style="align-self: flex-start; margin-top: 1rem; background: var(--success); color: white;">ไปหน้าอนุมัติ</span>
+    </a>
+    {% endif %}
 </div>
 
 <div class="card">

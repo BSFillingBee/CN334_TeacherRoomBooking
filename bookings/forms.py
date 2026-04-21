@@ -22,7 +22,7 @@ class BookingForm(forms.ModelForm):
         model = Booking
         fields = [
             'room', 'purpose_type', 'course_id', 'course_name', 
-            'program', 'topic', 'start_date', 'end_date', 
+            'program', 'section', 'topic', 'start_date', 'end_date', 
             'start_time', 'end_time'
         ]
         widgets = {
@@ -51,7 +51,6 @@ class BookingForm(forms.ModelForm):
             return cleaned_data
 
         from django.utils import timezone
-        from datetime import datetime, combine
 
         now = timezone.localtime(timezone.now())
         today = now.date()

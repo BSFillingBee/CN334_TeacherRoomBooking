@@ -34,4 +34,5 @@ class User(AbstractUser):
     
     @property
     def is_admin(self):
-        return self.role == 'ADMIN'
+        # ให้คนที่มีบทบาท ADMIN หรือเป็น Superuser/Staff ของ Django เห็นเมนูจัดการได้
+        return self.role == 'ADMIN' or self.is_superuser or self.is_staff

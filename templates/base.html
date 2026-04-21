@@ -40,7 +40,7 @@
                 {% if user.is_admin %}
                     <hr style="margin: 1rem 0; opacity: 0.2;">
                     <div style="padding: 0 1rem 0.5rem; font-size: 0.8rem; text-transform: uppercase; color: var(--secondary-color);">ส่วนสำหรับเจ้าหน้าที่</div>
-                    <a href="/admin/approvals/" class="nav-link">อนุมัติการจอง</a>
+                    <a href="/bookings/admin/approvals/" class="nav-link {% if '/bookings/admin/approvals/' in request.path %}active{% endif %}">อนุมัติการจอง</a>
                     <a href="/reports/" class="nav-link">รายงานสถิติ</a>
                     <a href="/rooms/" class="nav-link">จัดการห้อง</a>
                 {% endif %}

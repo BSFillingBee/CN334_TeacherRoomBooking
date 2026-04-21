@@ -33,6 +33,8 @@
                     <td>
                         {% if booking.purpose_type == 'TEACHING' %}
                             {{ booking.course_name }} ({{ booking.course_id }})
+                            <br>
+                            <small>กลุ่ม: {{ booking.section|default:"-" }} / หลักสูตร: {{ booking.get_program_display }}</small>
                         {% else %}
                             {{ booking.topic }}
                         {% endif %}

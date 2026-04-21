@@ -61,6 +61,12 @@ class Booking(models.Model):
         null=True, 
         verbose_name='หลักสูตร'
     )
+    section = models.CharField(
+        max_length=10, 
+        blank=True, 
+        null=True, 
+        verbose_name='กลุ่มเรียน (Section)'
+    )
     
     # Fields for Training
     topic = models.CharField(
