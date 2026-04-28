@@ -1,6 +1,8 @@
 import json
 
+import requests
 from django.contrib.auth import authenticate, login, logout
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -78,6 +80,86 @@ def serialize_booking(booking):
     }
 
 
+def _booking_conflicts(room, date, start_time, end_time):
+    day = str(date.weekday())
+    conflicts = Booking.objects.filter(
+        room=room,
+        status__in=['APPROVED', 'PENDING'],
+        start_date__lte=date,
+        end_date__gte=date,
+        start_time__lt=end_time,
+        end_time__gt=start_time,
+    )
+    return [booking for booking in conflicts if day in booking.get_days_list()]
+
+
+def _parse_hhmm(value):
+    return timezone.datetime.strptime(value, '%H:%M').time()
+
+
+def _parse_date(value):
+    return timezone.datetime.strptime(value, '%Y-%m-%d').date()
+
+
+def _ai_booking_prompt(message):
+    rooms = [
+        {
+            'id': str(room.id),
+            'code': room.code,
+            'name': room.name,
+            'capacity': room.capacity,
+        }
+        for room in Room.objects.filter(is_active=True).order_by('code')
+    ]
+    today = timezone.localdate().isoformat()
+    return [
+        {
+            'role': 'system',
+            'content': (
+                'You convert Thai natural-language room booking requests into strict JSON. '
+                'Return only JSON with keys: roomId, date, start, end, attendees, purpose, reply. '
+                'date must be YYYY-MM-DD, start/end must be HH:MM 24-hour time. '
+                'Choose roomId from the provided room list. If the room is unclear, choose the best fit by capacity. '
+                'If any value is missing, infer a reasonable value and explain briefly in reply.'
+            ),
+        },
+        {
+            'role': 'user',
+            'content': json.dumps(
+                {
+                    'today': today,
+                    'rooms': rooms,
+                    'request': message,
+                },
+                ensure_ascii=False,
+            ),
+        },
+    ]
+
+
+def _call_ai_booking(message):
+    if not settings.AI_API_KEY:
+        raise ValueError('ยังไม่ได้ตั้งค่า AI_API_KEY')
+
+    response = requests.post(
+        f"{settings.AI_API_BASE.rstrip('/')}/chat/completions",
+        headers={
+            'Authorization': f'Bearer {settings.AI_API_KEY}',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'model': settings.AI_MODEL,
+            'messages': _ai_booking_prompt(message),
+            'temperature': 0.2,
+            'response_format': {'type': 'json_object'},
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    content = response.json()['choices'][0]['message']['content']
+    return json.loads(content)
+
+
 def bootstrap_payload(request):
     bookings = Booking.objects.select_related('room', 'requester')
     if request.user.is_authenticated and not getattr(request.user, 'is_admin', False):
@@ -132,15 +214,8 @@ def api_booking_create(request):
     end_time = timezone.datetime.strptime(data.get('endTime'), '%H:%M').time()
     day = str(start_date.weekday())
 
-    conflicts = Booking.objects.filter(
-        room=room,
-        status__in=['APPROVED', 'PENDING'],
-        start_date__lte=start_date,
-        end_date__gte=start_date,
-        start_time__lt=end_time,
-        end_time__gt=start_time,
-    )
-    if any(day in booking.get_days_list() for booking in conflicts):
+    conflicts = _booking_conflicts(room, start_date, start_time, end_time)
+    if conflicts:
         return JsonResponse({'error': 'มีการจองห้องนี้ในช่วงเวลาดังกล่าวแล้ว'}, status=409)
 
     booking = Booking.objects.create(
@@ -191,3 +266,52 @@ def api_booking_review(request, pk):
     booking.save()
     send_booking_status_update(booking)
     return JsonResponse({'booking': serialize_booking(booking)})
+
+
+@login_required
+@require_POST
+def api_ai_booking(request):
+    data = json.loads(request.body or '{}')
+    message = (data.get('message') or '').strip()
+    if not message:
+        return JsonResponse({'error': 'กรุณาพิมพ์คำขอจองห้อง'}, status=400)
+
+    try:
+        parsed = _call_ai_booking(message)
+        room = get_object_or_404(Room, pk=parsed.get('roomId'), is_active=True)
+        booking_date = _parse_date(parsed.get('date'))
+        start_time = _parse_hhmm(parsed.get('start'))
+        end_time = _parse_hhmm(parsed.get('end'))
+    except requests.RequestException:
+        return JsonResponse({'error': 'เชื่อมต่อบริการ AI ไม่สำเร็จ'}, status=502)
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'AI ยังอ่านคำขอไม่ได้ กรุณาลองระบุห้อง วันที่ และเวลาให้ชัดขึ้น'}, status=400)
+
+    if start_time >= end_time:
+        return JsonResponse({'error': 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น'}, status=400)
+
+    conflicts = _booking_conflicts(room, booking_date, start_time, end_time)
+    parsed_payload = {
+        'roomId': str(room.id),
+        'date': booking_date.isoformat(),
+        'start': start_time.strftime('%H:%M'),
+        'end': end_time.strftime('%H:%M'),
+        'attendees': int(parsed.get('attendees') or 1),
+        'purpose': parsed.get('purpose') or 'จองห้องประชุม',
+    }
+    if conflicts:
+        return JsonResponse(
+            {
+                'error': 'ช่วงเวลานี้มีการจองอยู่แล้ว',
+                'conflicts': [serialize_booking(booking) for booking in conflicts],
+                'parsed': parsed_payload,
+            },
+            status=409,
+        )
+
+    return JsonResponse(
+        {
+            'message': parsed.get('reply') or 'AI เตรียมข้อมูลการจองให้แล้ว กดยืนยันเพื่อส่งคำขอจอง',
+            'parsed': parsed_payload,
+        }
+    )

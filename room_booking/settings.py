@@ -156,3 +156,8 @@ TU_API_URL = "https://restapi.tu.ac.th/api/v1/auth/Ad/verify"
 TU_APP_KEY = os.getenv('TU_APP_KEY', 'TO_BE_CONFIGURED')
 MOCK_API = os.getenv('MOCK_API', 'True') == 'True'
 BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
+
+# AI booking assistant
+AI_API_KEY = os.getenv('AI_API_KEY', '')
+AI_API_BASE = os.getenv('AI_API_BASE', 'https://api.openai.com/v1')
+AI_MODEL = os.getenv('AI_MODEL', 'gpt-4o-mini')

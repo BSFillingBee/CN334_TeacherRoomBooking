@@ -5,13 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Send, Bot, User, Calendar, Users, Clock, MapPin, CheckCircle2 } from "lucide-react";
 import { rooms } from "@/data/mockData";
 import { useAppStore } from "@/store/appStore";
+import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
-import { format } from "date-fns";
 
 interface Msg {
   role: "user" | "ai";
   text: string;
   parsed?: { roomId: string; date: string; start: string; end: string; attendees: number; purpose: string };
+}
+
+interface AIBookingResponse {
+  message: string;
+  parsed: NonNullable<Msg["parsed"]>;
 }
 
 const SUGGESTIONS = [
@@ -29,35 +34,33 @@ export default function AIBooking() {
   ]);
   const [thinking, setThinking] = useState(false);
 
-  const send = (text: string) => {
+  const send = async (text: string) => {
     if (!text.trim()) return;
     setMsgs((m) => [...m, { role: "user", text }]);
     setInput("");
     setThinking(true);
 
-    // mock AI parse
-    setTimeout(() => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const parsed = {
-        roomId: (rooms.find((room) => text.includes(room.code)) || rooms[0])?.id,
-        date: format(tomorrow, "yyyy-MM-dd"),
-        start: text.includes("บ่าย") || text.includes("13") || text.includes("14") ? "14:00" : "09:00",
-        end: text.includes("บ่าย") || text.includes("13") || text.includes("14") ? "16:00" : "11:00",
-        attendees: parseInt(text.match(/\d+\s*คน/)?.[0] || "10") || 10,
-        purpose: "ประชุมตามที่ระบุในข้อความ",
-      };
-      const room = rooms.find((r) => r.id === parsed.roomId)!;
+    try {
+      const data = await apiRequest<AIBookingResponse>("/api/ai-booking/", {
+        method: "POST",
+        body: { message: text },
+      });
+      const room = rooms.find((r) => r.id === data.parsed.roomId)!;
       setMsgs((m) => [
         ...m,
         {
           role: "ai",
-          text: `เข้าใจแล้วครับ! ผมขอเสนอการจองดังนี้:\n\n📍 ${room.name} (${room.code})\n📅 ${parsed.date}\n⏰ ${parsed.start} - ${parsed.end} น.\n👥 ${parsed.attendees} คน\n\nกดยืนยันเพื่อส่งคำขอจองได้เลย`,
-          parsed,
+          text: `${data.message}\n\nห้อง ${room.name} (${room.code})\nวันที่ ${data.parsed.date}\nเวลา ${data.parsed.start} - ${data.parsed.end} น.\nจำนวน ${data.parsed.attendees} คน\n\nกดยืนยันเพื่อส่งคำขอจองได้เลย`,
+          parsed: data.parsed,
         },
       ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI ยังประมวลผลไม่ได้";
+      toast.error(message);
+      setMsgs((m) => [...m, { role: "ai", text: message }]);
+    } finally {
       setThinking(false);
-    }, 900);
+    }
   };
 
   const confirm = async (parsed: NonNullable<Msg["parsed"]>) => {
@@ -142,14 +145,14 @@ export default function AIBooking() {
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
-                onClick={() => send(s)}
+                onClick={() => void send(s)}
                 className="text-[11px] px-3 py-1.5 rounded-full bg-accent text-accent-foreground hover:bg-accent/80 transition-smooth border border-accent"
               >
                 {s}
               </button>
             ))}
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex gap-2">
+          <form onSubmit={(e) => { e.preventDefault(); void send(input); }} className="flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

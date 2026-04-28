@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/bootstrap/', views.api_bootstrap, name='api_bootstrap'),
     path('api/login/', views.api_login, name='api_login'),
     path('api/logout/', views.api_logout, name='api_logout'),
+    path('api/ai-booking/', views.api_ai_booking, name='api_ai_booking'),
     path('api/bookings/', views.api_booking_create, name='api_booking_create'),
     path('api/bookings/<int:pk>/cancel/', views.api_booking_cancel, name='api_booking_cancel'),
     path('api/bookings/<int:pk>/review/', views.api_booking_review, name='api_booking_review'),

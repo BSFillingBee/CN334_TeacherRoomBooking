@@ -102,8 +102,8 @@ const fallbackRooms: Room[] = [
   },
 ];
 
-export const rooms: Room[] = (bootstrap?.rooms as Room[] | undefined)?.length
-  ? (bootstrap?.rooms as Room[])
+export const rooms: Room[] = Array.isArray(bootstrap?.rooms)
+  ? (bootstrap.rooms as Room[])
   : fallbackRooms;
 
 export const equipmentLabel: Record<RoomEquipment, string> = {
@@ -236,7 +236,7 @@ const fallbackUser = {
 };
 
 export const currentUser = (bootstrap?.currentUser as typeof fallbackUser | null) || fallbackUser;
-export const initialBookings: Booking[] = bootstrap?.bookings?.length
+export const initialBookings: Booking[] = Array.isArray(bootstrap?.bookings)
   ? bootstrap.bookings
   : fallbackBookings;
 
