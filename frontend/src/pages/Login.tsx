@@ -82,13 +82,13 @@ export default function Login() {
           <div className="space-y-2 mb-8">
             <h2 className="font-display font-bold text-3xl text-foreground">เข้าสู่ระบบ</h2>
             <p className="text-muted-foreground text-sm">
-              เข้าสู่ระบบด้วยบัญชี <span className="font-semibold text-primary">TU NetID</span> ของคุณ
+              เข้าสู่ระบบด้วยบัญชี <span className="font-semibold text-primary">TU Account</span> ของคุณ
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="user">TU NetID</Label>
+              <Label htmlFor="user">TU Account</Label>
               <Input
                 id="user"
                 value={user}
