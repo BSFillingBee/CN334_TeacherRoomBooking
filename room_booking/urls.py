@@ -18,17 +18,23 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import dashboard
+from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', dashboard, name='dashboard'),
+    path('api/bootstrap/', views.api_bootstrap, name='api_bootstrap'),
+    path('api/login/', views.api_login, name='api_login'),
+    path('api/logout/', views.api_logout, name='api_logout'),
+    path('api/bookings/', views.api_booking_create, name='api_booking_create'),
+    path('api/bookings/<int:pk>/cancel/', views.api_booking_cancel, name='api_booking_cancel'),
+    path('api/bookings/<int:pk>/review/', views.api_booking_review, name='api_booking_review'),
     path('accounts/', include('accounts.urls')),
-    path('bookings/', include('bookings.urls')),
-    path('rooms/', include('rooms.urls')),
-    path('calendar/', include('calendar_app.urls')),
-    path('reports/', include('reports.urls')),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+urlpatterns += [
+    path('', views.frontend_app, name='dashboard'),
+    path('<path:route>/', views.frontend_app, name='frontend_app'),
+]
