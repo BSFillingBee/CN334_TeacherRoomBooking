@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAppStore } from "@/store/appStore";
 import { currentUser } from "@/data/mockData";
+import tseLogo from "@/assets/tse-logo.png";
 
 const staffItems = [
   { title: "แดชบอร์ด", url: "/", icon: LayoutDashboard },
@@ -59,10 +60,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <NavLink to="/" className="flex items-center gap-3">
-          <div className="size-10 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0 shadow-glow">
-            <span className="font-display font-bold text-sidebar-primary-foreground text-lg">
-              มธ
-            </span>
+          <div className="size-10 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-glow overflow-hidden p-1">
+            <img src={tseLogo} alt="TSE" className="size-full object-contain" />
           </div>
           {!collapsed && (
             <div className="min-w-0">

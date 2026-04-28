@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useAppStore } from "@/store/appStore";
 import { Shield, Building2, GraduationCap } from "lucide-react";
+import tseLogo from "@/assets/tse-logo.png";
 
 export default function Login() {
   const nav = useNavigate();
@@ -28,8 +29,8 @@ export default function Login() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-4">
-            <div className="size-16 rounded-xl bg-secondary flex items-center justify-center shadow-glow">
-              <span className="font-display font-extrabold text-secondary-foreground text-2xl">มธ</span>
+            <div className="size-16 rounded-xl bg-white flex items-center justify-center shadow-glow overflow-hidden p-1.5">
+              <img src={tseLogo} alt="TSE" className="size-full object-contain" />
             </div>
             <div>
               <div className="font-display font-bold text-2xl leading-tight">มหาวิทยาลัยธรรมศาสตร์</div>
@@ -47,8 +48,7 @@ export default function Login() {
             ระบบจอง<br />ห้องประชุมออนไลน์
           </h1>
           <p className="text-primary-foreground/80 text-lg max-w-md leading-relaxed">
-            จองห้องประชุมได้ภายใน 3 นาที พร้อมระบบ AI ช่วยจอง
-            ดูปฏิทินห้องว่าง และจัดการการจองของคุณในที่เดียว
+              ดูปฏิทินห้องว่าง และจัดการการจองของคุณในที่เดียว พร้อมระบบ AI ช่วยจอง
           </p>
           <div className="grid grid-cols-3 gap-4 pt-4">
             {[
@@ -73,8 +73,8 @@ export default function Login() {
       <div className="flex items-center justify-center p-6 lg:p-12">
         <Card className="w-full max-w-md p-8 border-border shadow-elegant animate-scale-in">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="size-12 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <span className="font-display font-bold text-primary-foreground">มธ</span>
+            <div className="size-12 rounded-lg bg-white flex items-center justify-center overflow-hidden p-1">
+              <img src={tseLogo} alt="TSE" className="size-full object-contain" />
             </div>
             <div className="font-display font-bold">ระบบจองห้องประชุม</div>
           </div>
