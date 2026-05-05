@@ -11,7 +11,7 @@ class Room(models.Model):
     room_type = models.CharField(max_length=10, choices=ROOM_TYPES, verbose_name='ประเภท')
     capacity = models.IntegerField(verbose_name='จำนวนที่นั่ง')
     is_active = models.BooleanField(default=True, verbose_name='เปิดใช้งาน')
-    image = models.ImageField(upload_to='rooms/', blank=True, null=True, verbose_name='รูปภาพห้อง')
+    image = models.CharField(max_length=255, blank=True, null=True, verbose_name='รูปภาพห้อง (URL)')
 
     class Meta:
         verbose_name = 'ห้อง'

@@ -1,41 +1,42 @@
-"""
-URL configuration for room_booking project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from . import views
+from . import template_views as v
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/bootstrap/', views.api_bootstrap, name='api_bootstrap'),
-    path('api/login/', views.api_login, name='api_login'),
-    path('api/logout/', views.api_logout, name='api_logout'),
-    path('api/ai-booking/', views.api_ai_booking, name='api_ai_booking'),
-    path('api/bookings/', views.api_booking_create, name='api_booking_create'),
-    path('api/bookings/<int:pk>/cancel/', views.api_booking_cancel, name='api_booking_cancel'),
-    path('api/bookings/<int:pk>/review/', views.api_booking_review, name='api_booking_review'),
-    path('accounts/', include('accounts.urls')),
+
+    # Auth
+    path('', v.login_view, name='login'),
+    path('login/', v.login_view, name='login'),
+    path('logout/', v.logout_view, name='logout'),
+
+    # Staff
+    path('dashboard/', v.dashboard, name='dashboard'),
+    path('calendar/', v.calendar_view, name='calendar_view'),
+    path('rooms/', v.room_list, name='room_list'),
+    path('rooms/<int:pk>/', v.room_detail, name='room_detail'),
+    path('map/', v.floor_map, name='floor_map'),
+    path('bookings/new/', v.book_room, name='book_room'),
+    path('bookings/my/', v.my_bookings, name='my_bookings'),
+    path('bookings/<int:pk>/cancel/', v.cancel_booking, name='cancel_booking'),
+    path('ai-booking/', v.ai_booking, name='ai_booking'),
+    path('ai-booking/confirm/', v.ai_confirm_booking, name='ai_confirm_booking'),
+
+    # Admin
+    path('admin-panel/', v.admin_approval, name='admin_approval'),
+    path('admin-panel/bookings/<int:pk>/review/', v.review_booking, name='review_booking'),
+    path('admin-panel/rooms/', v.admin_rooms, name='admin_rooms'),
+    path('admin-panel/rooms/add/', v.add_room, name='add_room'),
+    path('admin-panel/rooms/<int:pk>/toggle/', v.toggle_room, name='toggle_room'),
+    path('admin-panel/rooms/<int:pk>/edit/', v.edit_room, name='edit_room'),
+    path('admin-panel/reports/', v.admin_reports, name='admin_reports'),
+    path('admin-panel/reports/csv/', v.reports_csv, name='reports_csv'),
+    path('admin-panel/users/', v.admin_users, name='admin_users'),
+    path('admin-panel/users/<int:user_id>/role/', v.set_user_role, name='set_user_role'),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-urlpatterns += [
-    path('', views.frontend_app, name='dashboard'),
-    path('<path:route>/', views.frontend_app, name='frontend_app'),
-]
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

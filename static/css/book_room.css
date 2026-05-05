@@ -1,0 +1,23 @@
+.room-btn{
+    padding:1rem;border-radius:0.75rem;border:2px solid var(--border);
+    text-align:left;cursor:pointer;background:var(--card);
+    transition:var(--transition);width:100%;font-family:'IBM Plex Sans Thai',sans-serif;
+  }
+  .room-btn:hover{border-color:hsl(0,75%,28%,0.4);}
+  .room-btn.selected{border-color:var(--primary);background:hsl(0,75%,28%,0.05);}
+  .day-btn{
+    padding:0.375rem 0.875rem;border-radius:0.5rem;border:1px solid var(--border);
+    cursor:pointer;background:var(--card);font-size:0.85rem;
+    font-family:'IBM Plex Sans Thai',sans-serif;transition:var(--transition);
+  }
+  .day-btn.selected{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);}
+  .purpose-btn{
+    flex:1;padding:0.875rem 1rem;border-radius:0.75rem;border:2px solid var(--border);
+    cursor:pointer;background:var(--card);font-size:0.875rem;font-weight:500;
+    font-family:'IBM Plex Sans Thai',sans-serif;transition:var(--transition);text-align:center;
+  }
+  .purpose-btn.selected{border-color:var(--primary);background:hsl(0,75%,28%,0.05);color:var(--primary);}
+  .conflict-box{
+    padding:1rem;border-radius:0.5rem;background:hsl(0,84%,50%,0.08);
+    border:1px solid hsl(0,84%,50%,0.3);display:flex;gap:0.75rem;
+  }

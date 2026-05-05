@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}จองห้องประชุม{% endblock %}
+
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/book_room.css' %}">
+{% endblock %}
+
+{% block content %}
+<div>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">จองห้องประชุม</h1>
+      <p class="page-sub">กรอกข้อมูลให้ครบถ้วน · ระบบจะตรวจสอบการจองซ้ำอัตโนมัติ</p>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="{% url 'book_room' %}" id="bookForm">
+    {% csrf_token %}
+
+    <div class="booking-grid">
+      <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+        <!-- Room selector -->
+        <div class="card" style="padding:1.5rem;">
+          <h3 style="font-weight:600;margin-bottom:1rem;">เลือกห้อง</h3>
+          <div class="grid grid-2">
+            {% for room in rooms %}
+            <label class="room-btn {% if selected_room_id == room.id|stringformat:'s' %}selected{% endif %}" onclick="selectRoom('{{ room.id }}')">
+              <input type="radio" name="roomId" value="{{ room.id }}" style="display:none;" {% if selected_room_id == room.id|stringformat:'s' %}checked{% endif %}>
+              <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:0.375rem;">
+                <span style="font-size:0.7rem;padding:0.15rem 0.5rem;background:var(--muted);border-radius:9999px;font-weight:500;color:var(--muted-fg);">{{ room.code }}</span>
+
+              </div>
+              {% if room.thumb %}<img src="{% static room.thumb %}" alt="{{ room.name }}" style="width:100%;height:64px;object-fit:cover;border-radius:0.375rem;margin-bottom:0.375rem;">{% endif %}
+              <div style="font-weight:600;font-size:0.9rem;">{{ room.name }}</div>
+              <div style="font-size:0.75rem;color:var(--muted-fg);display:flex;align-items:center;gap:0.25rem;margin-top:0.25rem;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                {{ room.capacity }} คน
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Date + Days + Time -->
+        <div class="card" style="padding:1.5rem;">
+          <h3 style="font-weight:600;margin-bottom:1rem;">วันและเวลา</h3>
+
+          <div class="grid grid-2" style="margin-bottom:1rem;">
+            <div class="form-group">
+              <label>วันเริ่มต้น</label>
+              <input type="date" name="startDate" value="{{ form_data.startDate|default:today }}" required>
+            </div>
+            <div class="form-group">
+              <label>วันสิ้นสุด</label>
+              <input type="date" name="endDate" value="{{ form_data.endDate|default:today }}" required>
+            </div>
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+              <label style="font-size:0.875rem;font-weight:500;">วันในสัปดาห์</label>
+              <button type="button" onclick="toggleAllDays()" style="font-size:0.75rem;color:var(--primary);background:none;border:none;cursor:pointer;">เลือกทุกวัน</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+              {% for d in days_of_week %}
+              <button type="button" class="day-btn {% if d.value in selected_days %}selected{% endif %}"
+                onclick="toggleDay(this, '{{ d.value }}')" data-day="{{ d.value }}">
+                {{ d.label }}
+              </button>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="daysOfWeek" id="daysOfWeekInput" value="{{ form_data.daysOfWeek|default:'' }}">
+          </div>
+
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label>เวลาเริ่ม</label>
+              <select name="startTime">
+                {% for t in time_slots %}
+                <option value="{{ t }}" {% if form_data.startTime == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>เวลาสิ้นสุด</label>
+              <select name="endTime">
+                {% for t in time_slots %}
+                <option value="{{ t }}" {% if form_data.endTime == t %}selected{% elif t == '11:00' and not form_data.endTime %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Purpose type -->
+        <div class="card" style="padding:1.5rem;">
+          <h3 style="font-weight:600;margin-bottom:1rem;">วัตถุประสงค์การใช้ห้อง</h3>
+
+          <div style="display:flex;gap:0.75rem;margin-bottom:1.25rem;">
+            <button type="button" class="purpose-btn {% if form_data.purposeType != 'TRAINING' %}selected{% endif %}"
+              onclick="selectPurpose('TEACHING')">สอนปกติ / ชดเชย / เสริม</button>
+            <button type="button" class="purpose-btn {% if form_data.purposeType == 'TRAINING' %}selected{% endif %}"
+              onclick="selectPurpose('TRAINING')">จัดอบรม / จัดติว</button>
+          </div>
+          <input type="hidden" name="purposeType" id="purposeTypeInput" value="{{ form_data.purposeType|default:'TEACHING' }}">
+
+          <div id="teachingFields" {% if form_data.purposeType == 'TRAINING' %}style="display:none"{% endif %}>
+            <div class="grid grid-2" style="margin-bottom:0.875rem;">
+              <div class="form-group">
+                <label>รหัสวิชา *</label>
+                <input type="text" name="courseId" placeholder="เช่น EE331" value="{{ form_data.courseId }}">
+              </div>
+              <div class="form-group">
+                <label>กลุ่มเรียน (Section)</label>
+                <input type="text" name="section" placeholder="เช่น 1" value="{{ form_data.section }}">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0.875rem;">
+              <label>ชื่อวิชา *</label>
+              <input type="text" name="courseName" placeholder="เช่น วงจรไฟฟ้า" value="{{ form_data.courseName }}">
+            </div>
+            <div class="form-group">
+              <label>หลักสูตร *</label>
+              <select name="program">
+                {% for p in programs %}
+                <option value="{{ p.value }}" {% if form_data.program == p.value %}selected{% endif %}>{{ p.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div id="trainingFields" {% if form_data.purposeType != 'TRAINING' %}style="display:none"{% endif %}>
+            <div class="form-group">
+              <label>ชื่อเรื่อง / หัวข้ออบรม *</label>
+              <input type="text" name="topic" placeholder="เช่น อบรม Python สำหรับวิศวกร" value="{{ form_data.topic }}">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Summary -->
+      <div class="card" style="padding:1.5rem;height:fit-content;position:sticky;top:1.5rem;background:linear-gradient(180deg,hsl(48,100%,88%,0.3),var(--card));">
+        <h3 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">สรุปการจอง</h3>
+        <div style="display:flex;flex-direction:column;gap:0.875rem;font-size:0.875rem;">
+          <div>
+            <div style="font-size:0.75rem;color:var(--muted-fg);margin-bottom:0.125rem;">ห้อง</div>
+            <div style="font-weight:600;" id="summaryRoom">— กรุณาเลือกห้อง</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;color:var(--fg);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="summaryDate">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;color:var(--fg);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="summaryTime">—</span>
+          </div>
+          <hr class="divider">
+          <div>
+            <div style="font-size:0.75rem;color:var(--muted-fg);margin-bottom:0.125rem;">ผู้จอง</div>
+            <div style="font-weight:600;">{{ user.get_full_name|default:user.username }}</div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:1.25rem;justify-content:center;">
+          ส่งคำขอจอง
+        </button>
+        <p style="font-size:0.7rem;color:var(--muted-fg);text-align:center;margin-top:0.625rem;">ระบบจะส่งอีเมลแจ้งเตือนเมื่ออนุมัติ</p>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const roomData = {{ rooms_json|safe }};
+let selectedDays = new Set({{ selected_days_json|safe }});
+document.getElementById('daysOfWeekInput').value = Array.from(selectedDays).join(',');
+
+function selectRoom(id) {
+  document.querySelectorAll('.room-btn').forEach(b => b.classList.remove('selected'));
+  const selected = document.querySelector(`[onclick="selectRoom('${id}')"]`);
+  if (selected) selected.classList.add('selected');
+  const radio = document.querySelector(`input[name="roomId"][value="${id}"]`);
+  if (radio) radio.checked = true;
+  const room = roomData.find(r => String(r.id) === String(id));
+  if (room) document.getElementById('summaryRoom').textContent = room.code + ' · ' + room.name;
+}
+
+function toggleDay(btn, day) {
+  if (selectedDays.has(day)) { selectedDays.delete(day); btn.classList.remove('selected'); }
+  else { selectedDays.add(day); btn.classList.add('selected'); }
+  document.getElementById('daysOfWeekInput').value = Array.from(selectedDays).join(',');
+}
+
+function toggleAllDays() {
+  if (selectedDays.size === 5) {
+    selectedDays.clear();
+    document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
+  } else {
+    ['0','1','2','3','4'].forEach(d => selectedDays.add(d));
+    document.querySelectorAll('.day-btn').forEach(b => b.classList.add('selected'));
+  }
+  document.getElementById('daysOfWeekInput').value = Array.from(selectedDays).join(',');
+}
+
+function selectPurpose(type) {
+  document.getElementById('purposeTypeInput').value = type;
+  document.querySelectorAll('.purpose-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.purpose-btn').forEach(b => {
+    if (b.getAttribute('onclick') === "selectPurpose('" + type + "')") b.classList.add('selected');
+  });
+  document.getElementById('teachingFields').style.display = type === 'TEACHING' ? '' : 'none';
+  document.getElementById('trainingFields').style.display = type === 'TRAINING' ? '' : 'none';
+}
+
+// Update summary
+document.querySelectorAll('input[name="startDate"],input[name="endDate"],select[name="startTime"],select[name="endTime"]').forEach(el => {
+  el.addEventListener('change', updateSummary);
+});
+function updateSummary() {
+  const s = document.querySelector('input[name="startDate"]').value;
+  const e = document.querySelector('input[name="endDate"]').value;
+  const st = document.querySelector('select[name="startTime"]').value;
+  const et = document.querySelector('select[name="endTime"]').value;
+  document.getElementById('summaryDate').textContent = s === e ? s : s + ' ถึง ' + e;
+  document.getElementById('summaryTime').textContent = st + ' – ' + et + ' น.';
+}
+updateSummary();
+
+// Init selected room
+{% if selected_room_id %}
+const initRoom = roomData.find(r => String(r.id) === '{{ selected_room_id }}');
+if (initRoom) document.getElementById('summaryRoom').textContent = initRoom.code + ' · ' + initRoom.name;
+{% endif %}
+</script>
+{% endblock %}

@@ -4,57 +4,100 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
+def _base_url():
+    return getattr(settings, 'BASE_URL', 'http://localhost:8000')
+
+
 def send_booking_notification_to_admin(booking):
-    """Notify all Admins when a new booking is created."""
-    admins = User.objects.filter(role='ADMIN')
-    admin_emails = [admin.email for admin in admins if admin.email]
-    
+    """แจ้ง Admin ทุกคนเมื่อมีการจองใหม่"""
+    admin_emails = list(
+        User.objects.filter(role='ADMIN').exclude(email='').values_list('email', flat=True)
+    )
     if not admin_emails:
-        return
-        
-    subject = f'[แจ้งเตือน] มีรายการจองใหม่: {booking.room.code}'
-    message = f"""
-    มีรายการจองใหม่ในระบบที่รอการตัดสินใจ:
-    
-    ผู้จอง: {booking.requester.username}
-    ห้อง: {booking.room.code} ({booking.room.name})
-    วัตถุประสงค์: {booking.course_name if booking.purpose_type == 'TEACHING' else booking.topic}
-    วันที่: {booking.start_date} ถึง {booking.end_date}
-    เวลา: {booking.start_time} - {booking.end_time}
-    
-    กรุณาตรวจสอบและอนุมัติในระบบ: {settings.BASE_URL if hasattr(settings, 'BASE_URL') else 'http://localhost:8000'}/bookings/admin/approvals/
-    """
-    
+        # fallback ส่งให้ EMAIL_HOST_USER ถ้าไม่มี Admin ที่มี email
+        fallback = getattr(settings, 'EMAIL_HOST_USER', '')
+        if fallback and fallback != 'YOUR_EMAIL@gmail.com':
+            admin_emails = [fallback]
+        else:
+            return
+
+    purpose = booking.course_name if booking.purpose_type == 'TEACHING' else booking.topic
+    subject = f'[แจ้งเตือน] มีรายการจองใหม่: ห้อง {booking.room.code}'
+    message = (
+        f'มีรายการจองใหม่รอการอนุมัติ\n\n'
+        f'ผู้จอง: {booking.requester.get_full_name() or booking.requester.username}\n'
+        f'อีเมล: {booking.requester.email}\n'
+        f'ห้อง: {booking.room.code} — {booking.room.name}\n'
+        f'วัตถุประสงค์: {purpose or "-"}\n'
+        f'วันที่: {booking.start_date} ถึง {booking.end_date}\n'
+        f'เวลา: {booking.start_time.strftime("%H:%M")} - {booking.end_time.strftime("%H:%M")}\n\n'
+        f'อนุมัติได้ที่: {_base_url()}/admin-panel/'
+    )
+
     try:
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, admin_emails)
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, admin_emails, fail_silently=False)
     except Exception as e:
-        print(f"Error sending admin email: {e}")
+        print(f'[Email Error] send_booking_notification_to_admin: {e}')
+
 
 def send_booking_status_update(booking):
-    """Notify the requester when their booking status changes."""
-    if not booking.requester.email:
+    """แจ้งผู้จองเมื่อสถานะเปลี่ยน (อนุมัติ / ปฏิเสธ / ยกเลิก)"""
+    recipient = booking.requester.email or getattr(settings, 'EMAIL_HOST_USER', '')
+    if not recipient:
         return
-        
-    status_text = booking.get_status_display()
-    subject = f'[แจ้งผลการจอง] รายการจองห้อง {booking.room.code} ของคุณคือ: {status_text}'
-    
-    message = f"""
-    เรียน คุณ {booking.requester.first_name or booking.requester.username},
-    
-    สถานะการจองห้อง {booking.room.code} ของคุณได้รับการอัปเดตเป็น: {status_text}
-    
-    รายละเอียด:
-    วัตถุประสงค์: {booking.course_name if booking.purpose_type == 'TEACHING' else booking.topic}
-    วันที่: {booking.start_date} ถึง {booking.end_date}
-    เวลา: {booking.start_time} - {booking.end_time}
-    """
-    
-    if booking.status == 'REJECTED':
-        message += f"\nเหตุผลที่ปฏิเสธ: {booking.rejection_reason}"
-        
-    message += f"\n\nตรวจสอบรายละเอียดได้ที่: {settings.BASE_URL if hasattr(settings, 'BASE_URL') else 'http://localhost:8000'}/bookings/my/"
-    
+
+    STATUS_LABEL = {
+        'APPROVED': 'อนุมัติแล้ว ✅',
+        'REJECTED': 'ถูกปฏิเสธ ❌',
+        'CANCELLED': 'ถูกยกเลิก',
+    }
+    status_text = STATUS_LABEL.get(booking.status, booking.get_status_display())
+    purpose = booking.course_name if booking.purpose_type == 'TEACHING' else booking.topic
+
+    subject = f'[แจ้งผลการจอง] ห้อง {booking.room.code} — {status_text}'
+    message = (
+        f'เรียน {booking.requester.get_full_name() or booking.requester.username}\n\n'
+        f'สถานะการจองห้อง {booking.room.code} ของคุณได้รับการอัปเดตเป็น: {status_text}\n\n'
+        f'รายละเอียด:\n'
+        f'  ห้อง: {booking.room.code} — {booking.room.name}\n'
+        f'  วัตถุประสงค์: {purpose or "-"}\n'
+        f'  วันที่: {booking.start_date} ถึง {booking.end_date}\n'
+        f'  เวลา: {booking.start_time.strftime("%H:%M")} - {booking.end_time.strftime("%H:%M")}\n'
+    )
+
+    if booking.status == 'REJECTED' and booking.rejection_reason:
+        message += f'\nเหตุผลที่ปฏิเสธ: {booking.rejection_reason}\n'
+
+    message += f'\nดูรายการจองของคุณได้ที่: {_base_url()}/bookings/my/'
+
     try:
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [booking.requester.email])
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient], fail_silently=False)
     except Exception as e:
-        print(f"Error sending user email: {e}")
+        print(f'[Email Error] send_booking_status_update: {e}')
+
+
+def send_cancellation_notice_to_admin(booking):
+    """แจ้ง Admin เมื่อผู้จองยกเลิกเอง"""
+    admin_emails = list(
+        User.objects.filter(role='ADMIN').exclude(email='').values_list('email', flat=True)
+    )
+    if not admin_emails:
+        return
+
+    purpose = booking.course_name if booking.purpose_type == 'TEACHING' else booking.topic
+    subject = f'[แจ้งเตือน] ผู้จองยกเลิกการจอง: ห้อง {booking.room.code}'
+    message = (
+        f'ผู้จองยกเลิกการจองด้วยตนเอง\n\n'
+        f'ผู้จอง: {booking.requester.get_full_name() or booking.requester.username}\n'
+        f'อีเมล: {booking.requester.email}\n'
+        f'ห้อง: {booking.room.code} — {booking.room.name}\n'
+        f'วัตถุประสงค์: {purpose or "-"}\n'
+        f'วันที่: {booking.start_date} ถึง {booking.end_date}\n'
+        f'เวลา: {booking.start_time.strftime("%H:%M")} - {booking.end_time.strftime("%H:%M")}\n'
+    )
+
+    try:
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, admin_emails, fail_silently=False)
+    except Exception as e:
+        print(f'[Email Error] send_cancellation_notice_to_admin: {e}')

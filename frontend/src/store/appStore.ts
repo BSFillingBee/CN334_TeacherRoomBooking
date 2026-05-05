@@ -32,7 +32,7 @@ const replaceBooking = (bookings: Booking[], updated: Booking) =>
 
 export const useAppStore = create<AppState>((set) => ({
   bookings: initialBookings,
-  isAuthenticated: bootstrap?.isAuthenticated ?? true,
+  isAuthenticated: bootstrap?.isAuthenticated ?? false,
   role: currentUser.role,
   addBooking: async (payload) => {
     const { booking } = await apiRequest<{ booking: Booking }>("/api/bookings/", {
@@ -87,7 +87,11 @@ export const useAppStore = create<AppState>((set) => ({
     set({ isAuthenticated: true, role });
   },
   logout: async () => {
-    await apiRequest("/api/logout/", { method: "POST" });
+    try {
+      await apiRequest("/api/logout/", { method: "POST" });
+    } catch {
+      // The standalone Vite frontend can run without Django API routes.
+    }
     set({ isAuthenticated: false, role: "staff", bookings: [] });
   },
 }));

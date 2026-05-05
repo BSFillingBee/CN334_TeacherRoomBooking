@@ -1,0 +1,13 @@
+.chat-bubble{max-width:80%;padding:0.875rem 1rem;border-radius:1rem;font-size:0.875rem;line-height:1.6;white-space:pre-wrap;}
+  .chat-ai{background:var(--card);border:1px solid var(--border);border-radius:1rem 1rem 1rem 0.25rem;}
+  .chat-user{background:var(--grad-primary);color:var(--primary-fg);border-radius:1rem 1rem 0.25rem 1rem;margin-left:auto;}
+  .chat-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .suggestion-btn{
+    font-size:0.72rem;padding:0.375rem 0.75rem;border-radius:9999px;
+    background:var(--accent);color:var(--accent-fg);border:1px solid hsl(48,100%,50%,0.4);
+    cursor:pointer;font-family:'IBM Plex Sans Thai',sans-serif;transition:var(--transition);
+  }
+  .suggestion-btn:hover{background:hsl(48,100%,50%,0.4);}
+  .parsed-card{background:var(--card);border:2px solid hsl(0,75%,28%,0.25);border-radius:0.75rem;padding:1rem;margin-top:0.75rem;}
+
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}

@@ -1,0 +1,11 @@
+.cal-day{
+    min-height:80px;padding:0.375rem;border-radius:0.5rem;border:2px solid transparent;
+    cursor:pointer;transition:var(--transition);position:relative;background:var(--card);
+  }
+  .cal-day:hover{border-color:var(--border);}
+  .cal-day.selected{border-color:var(--primary);background:hsl(0,75%,28%,0.05);}
+  .cal-day.today{background:hsl(48,100%,50%,0.12);border-color:var(--secondary);}
+  .cal-day.other-month{opacity:0.35;}
+  .cal-event{font-size:0.6rem;padding:0.1rem 0.3rem;border-radius:3px;margin-top:0.2rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .cal-event.approved{background:hsl(142,60%,38%,0.18);color:hsl(142,60%,28%);}
+  .cal-event.pending{background:hsl(38,95%,50%,0.2);color:hsl(38,80%,30%);}
