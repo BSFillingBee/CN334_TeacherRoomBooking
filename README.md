@@ -83,6 +83,22 @@ BASE_URL=http://localhost:8000
 เปลี่ยน `MOCK_API=False` เมื่อพร้อมใช้ TU REST API จริง
 
 ---
+## Test ส่งemail
+
+```bash
+python manage.py shell -c "
+from bookings.utils import send_booking_notification_to_admin
+from bookings.models import Booking
+
+b = Booking.objects.first()
+if b:
+    send_booking_notification_to_admin(b)
+    print('ส่งแล้ว เช็ค email ได้เลย')
+else:
+    print('ยังไม่มี booking ในระบบ ลองจองห้องก่อน')
+"
+```
+ถ้าไม่ได้ลอง hotspot มือถือ
 
 ## ห้องในระบบ (ตาม SRS)
 
