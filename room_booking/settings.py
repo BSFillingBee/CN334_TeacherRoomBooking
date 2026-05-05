@@ -42,8 +42,6 @@ INSTALLED_APPS = [
     'accounts',
     'rooms',
     'bookings',
-    'reports',
-    'calendar_app',
 ]
 
 MIDDLEWARE = [
@@ -161,3 +159,18 @@ BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
 AI_API_KEY = os.getenv('AI_API_KEY', '')
 AI_API_BASE = os.getenv('AI_API_BASE', 'https://api.openai.com/v1')
 AI_MODEL = os.getenv('AI_MODEL', 'gpt-4o-mini')
+
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+# Auth redirect
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+
+# NFR-SEC-03: Session timeout 8 ชั่วโมง
+SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True

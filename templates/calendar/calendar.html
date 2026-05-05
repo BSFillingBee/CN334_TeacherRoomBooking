@@ -1,199 +1,211 @@
-{% extends 'base.html' %}
-
-{% block title %}ตารางการใช้ห้อง - ระบบจองห้อง EE & CE{% endblock %}
-
+{% extends "base.html" %}
+{% load static %}
+{% block title %}ปฏิทินห้องประชุม{% endblock %}
 {% block extra_css %}
-<style>
-    .calendar-container {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-    .calendar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: white;
-        padding: 1.5rem;
-        border-radius: var(--border-radius);
-        box-shadow: var(--shadow-sm);
-    }
-    .month-nav {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-    }
-    .month-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        min-width: 200px;
-        text-align: center;
-        color: var(--primary-color);
-    }
-    .nav-btn {
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        background: #f1f5f9;
-        color: var(--text-primary);
-        text-decoration: none;
-        font-weight: 600;
-        transition: var(--transition);
-        border: 1px solid #e2e8f0;
-    }
-    .nav-btn:hover {
-        background: var(--primary-color);
-        color: white;
-    }
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 1px;
-        background: #e2e8f0;
-        border: 1px solid #e2e8f0;
-        border-radius: var(--border-radius);
-        overflow: hidden;
-        box-shadow: var(--shadow-md);
-    }
-    .calendar-weekday-header {
-        background: #f8fafc;
-        padding: 1rem;
-        text-align: center;
-        font-weight: 700;
-        color: var(--text-secondary);
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        border-bottom: 2px solid #e2e8f0;
-    }
-    .calendar-day-cell {
-        background: white;
-        min-height: 150px;
-        padding: 0.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-    .calendar-day-cell.other-month {
-        background: #f8fafc;
-    }
-    .day-number {
-        font-weight: 700;
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .is-today-marker {
-        background: var(--primary-color);
-        color: white;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        font-size: 0.75rem;
-    }
-    .booking-dot {
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        box-shadow: var(--shadow-sm);
-    }
-    .dot-approved {
-        background: #ecfdf5;
-        color: #065f46;
-        border-left: 3px solid var(--success);
-    }
-    .dot-pending {
-        background: #fffbeb;
-        color: #92400e;
-        border-left: 3px solid var(--pending);
-    }
-    .room-filter {
-        display: flex;
-        gap: 0.5rem;
-        padding: 1.5rem;
-        background: white;
-        border-radius: var(--border-radius);
-        box-shadow: var(--shadow-sm);
-        flex-wrap: wrap;
-    }
-
-    @media (max-width: 1024px) {
-        .calendar-grid {
-            grid-template-columns: repeat(7, 1fr);
-        }
-        .calendar-day-cell {
-            min-height: 100px;
-        }
-        .booking-dot {
-            font-size: 0.6rem;
-            padding: 2px 4px;
-        }
-    }
-</style>
+<link rel="stylesheet" href="{% static 'css/calendar.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="calendar-container">
-    <div class="header-content">
-        <h1>ปฏิทินการใช้ห้อง</h1>
-        <p style="color: var(--text-secondary);">ตรวจสอบตารางเวลาและความว่างของห้องเรียน/ห้องประชุม</p>
+<div>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">ปฏิทินห้องประชุม</h1>
+      <p class="page-sub">ดูห้องว่างและคลิกวันที่เพื่อจอง</p>
     </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+      <form method="get" style="display:flex;gap:0.5rem;align-items:center;">
+        <input type="hidden" name="month" value="{{ request.GET.month }}">
+        <select name="room" onchange="this.form.submit()" style="height:2.5rem;padding:0 0.75rem;border:1px solid var(--border);border-radius:0.5rem;font-size:0.875rem;background:var(--card);color:var(--fg);">
+          <option value="">ทุกห้อง</option>
+          {% for room in all_rooms %}
+          <option value="{{ room.id }}" {% if room_filter == room.id|stringformat:'s' %}selected{% endif %}>{{ room.code }} {{ room.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      <a href="{% url 'book_room' %}" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        จองห้องใหม่
+      </a>
+    </div>
+  </div>
 
-    <div class="calendar-header">
-        <div class="month-nav">
-            <a href="?month={{ prev_month }}&year={{ prev_year }}{% if selected_room %}&room={{ selected_room.id }}{% endif %}" class="nav-btn">←</a>
-            <div class="month-title">{{ month_name }} {{ current_year }}</div>
-            <a href="?month={{ next_month }}&year={{ next_year }}{% if selected_room %}&room={{ selected_room.id }}{% endif %}" class="nav-btn">→</a>
+  <!-- View toggle -->
+  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+    <button id="btnMonth" onclick="switchView('month')" class="btn btn-primary btn-sm">รายเดือน</button>
+    <button id="btnWeek" onclick="switchView('week')" class="btn btn-outline btn-sm">รายสัปดาห์</button>
+  </div>
+
+  <!-- Week view -->
+  <div id="weekView" style="display:none;margin-bottom:1.5rem;">
+    <div class="card" style="padding:1.5rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <h2 style="font-size:1.2rem;font-weight:700;" id="weekLabel"></h2>
+        <div style="display:flex;gap:0.5rem;">
+          <button onclick="prevWeek()" class="btn btn-outline btn-sm">‹</button>
+          <button onclick="todayWeek()" class="btn btn-outline btn-sm">สัปดาห์นี้</button>
+          <button onclick="nextWeek()" class="btn btn-outline btn-sm">›</button>
         </div>
-        <a href="/calendar/" class="btn btn-outline" style="font-size: 0.9rem;">กลับไปยังเดือนปัจจุบัน</a>
+      </div>
+      <div id="weekGrid" style="display:grid;grid-template-columns:80px repeat(5,1fr);border:1px solid var(--border);border-radius:0.5rem;overflow:hidden;"></div>
     </div>
+  </div>
 
-    <div class="room-filter">
-        <span style="font-weight: 600; margin-right: 0.5rem; display: flex; align-items: center;">ตัวกรองห้อง:</span>
-        <a href="?month={{ current_month }}&year={{ current_year }}" class="btn {% if not selected_room %}btn-primary{% else %}btn-outline{% endif %}" style="font-size: 0.85rem;">ทั้งหมด</a>
-        {% for room in rooms %}
-            <a href="?month={{ current_month }}&year={{ current_year }}&room={{ room.id }}" class="btn {% if selected_room.id == room.id %}btn-primary{% else %}btn-outline{% endif %}" style="font-size: 0.85rem;">
-                {{ room.code }}
-            </a>
+  <div id="monthView">
+  <div class="calendar-grid">
+    <div class="card" style="padding:1.5rem;">
+      <!-- Month nav -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+        <h2 style="font-size:1.375rem;font-weight:700;">{{ month_label }}</h2>
+        <div style="display:flex;gap:0.5rem;">
+          <a href="?month={{ prev_month }}" class="btn btn-outline btn-sm">‹</a>
+          <a href="?month={{ today_month }}" class="btn btn-outline btn-sm">วันนี้</a>
+          <a href="?month={{ next_month }}" class="btn btn-outline btn-sm">›</a>
+        </div>
+      </div>
+
+      <!-- Day headers -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0.375rem;margin-bottom:0.375rem;">
+        {% for d in day_headers %}
+        <div style="text-align:center;font-size:0.75rem;font-weight:600;padding:0.375rem;color:{% if d == 'อา' %}var(--danger){% else %}var(--muted-fg){% endif %};">{{ d }}</div>
         {% endfor %}
-    </div>
+      </div>
 
-    <div class="calendar-grid">
-        <div class="calendar-weekday-header">จันทร์</div>
-        <div class="calendar-weekday-header">อังคาร</div>
-        <div class="calendar-weekday-header">พุธ</div>
-        <div class="calendar-weekday-header">พฤหัสบดี</div>
-        <div class="calendar-weekday-header">ศุกร์</div>
-        <div class="calendar-weekday-header">เสาร์</div>
-        <div class="calendar-weekday-header">อาทิตย์</div>
-
-        {% for week in weeks %}
-            {% for day_data in week %}
-                {% if day_data.day == 0 %}
-                    <div class="calendar-day-cell other-month"></div>
-                {% else %}
-                    <div class="calendar-day-cell">
-                        <div class="day-number">
-                            <span {% if day_data.is_today %}class="is-today-marker"{% endif %}>{{ day_data.day }}</span>
-                        </div>
-                        
-                        {% for booking in day_data.bookings %}
-                            <div class="booking-dot {% if booking.status == 'APPROVED' %}dot-approved{% else %}dot-pending{% endif %}" 
-                                 title="{{ booking.start_time|time:'H:i' }} - {{ booking.end_time|time:'H:i' }}: {{ booking.room.code }} - {% if booking.purpose_type == 'TEACHING' %}{{ booking.course_id }}{% else %}{{ booking.topic }}{% endif %}">
-                                {{ booking.start_time|time:"H:i" }} {{ booking.room.code }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endfor %}
+      <!-- Days grid using CSS Grid -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0.375rem;">
+        {% for day in calendar_days %}
+        <div class="cal-day {% if day.is_today %}today{% endif %} {% if not day.in_month %}other-month{% endif %}"
+             onclick="selectDay('{{ day.date }}')">
+          <div style="font-size:0.8rem;font-weight:{% if day.is_today %}700{% else %}500{% endif %};color:{% if day.is_today %}var(--primary){% else %}var(--fg){% endif %};">{{ day.day }}</div>
+          {% for bk in day.bookings %}
+          <div class="cal-event {{ bk.status|lower }}">{{ bk.start_time }} {{ bk.room_code }}</div>
+          {% endfor %}
+          {% if day.more > 0 %}
+          <div style="font-size:0.6rem;color:var(--muted-fg);margin-top:0.15rem;">+{{ day.more }}</div>
+          {% endif %}
+        </div>
         {% endfor %}
+      </div>
+
+      <!-- Legend -->
+      <div style="display:flex;gap:1.25rem;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted-fg);">
+        <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:12px;height:12px;border-radius:3px;background:hsl(142,60%,38%,0.3);border:1px solid hsl(142,60%,38%);display:inline-block;"></span>อนุมัติแล้ว</div>
+        <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:12px;height:12px;border-radius:3px;background:hsl(38,95%,50%,0.3);border:1px solid hsl(38,95%,50%);display:inline-block;"></span>รออนุมัติ</div>
+        <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:12px;height:12px;border-radius:3px;background:hsl(48,100%,50%,0.3);border:1px solid var(--secondary);display:inline-block;"></span>วันนี้</div>
+      </div>
     </div>
+
+    <!-- Right panel -->
+    <div class="card" style="padding:1.5rem;height:fit-content;position:sticky;top:1.5rem;" id="dayPanel">
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted-fg);margin-bottom:0.25rem;">วันที่เลือก</div>
+        <h3 style="font-size:1.2rem;font-weight:700;" id="selectedDayLabel">—</h3>
+      </div>
+      <a id="bookDayBtn" href="{% url 'book_room' %}" class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:1.25rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        จองวันนี้
+      </a>
+      <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted-fg);margin-bottom:0.625rem;">การจอง</div>
+      <div id="dayBookings" style="font-size:0.85rem;color:var(--muted-fg);text-align:center;padding:2rem 0;">เลือกวันที่เพื่อดูการจอง</div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const allBookings = {{ bookings_json|safe }};
+const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const THAI_DAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const STATUS_LABEL = {pending:'รออนุมัติ',approved:'อนุมัติแล้ว',rejected:'ไม่อนุมัติ',cancelled:'ยกเลิก'};
+const STATUS_CLS = {pending:'badge-pending',approved:'badge-approved',rejected:'badge-rejected',cancelled:'badge-cancelled'};
+
+function selectDay(dateStr) {
+  document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+
+  const d = new Date(dateStr);
+  document.getElementById('selectedDayLabel').textContent =
+    THAI_DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + THAI_MONTHS[d.getMonth()];
+
+  document.getElementById('bookDayBtn').href = '/bookings/new/?startDate=' + dateStr + '&endDate=' + dateStr;
+
+  const bks = allBookings.filter(b => b.date === dateStr);
+  const container = document.getElementById('dayBookings');
+  if (!bks.length) {
+    container.innerHTML = '<p style="text-align:center;padding:2rem 0;color:var(--muted-fg);">ห้องประชุมว่างทั้งหมด ✨</p>';
+    return;
+  }
+  container.innerHTML = bks.map(b => `
+    <div style="padding:0.75rem;border-radius:0.5rem;border:1px solid var(--border);background:hsl(45,30%,97%);margin-bottom:0.5rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.375rem;">
+        <span style="font-size:0.75rem;font-family:monospace;font-weight:700;color:var(--primary);">${b.start_time}–${b.end_time}</span>
+        <span class="badge ${STATUS_CLS[b.status]}">${STATUS_LABEL[b.status]}</span>
+      </div>
+      <div style="font-weight:600;font-size:0.85rem;">${b.room_code} · ${b.room_name}</div>
+      <div style="font-size:0.75rem;color:var(--muted-fg);margin-top:0.2rem;">${b.purpose}</div>
+      <div style="font-size:0.7rem;color:var(--muted-fg);margin-top:0.2rem;">โดย ${b.booker_name}</div>
+    </div>
+  `).join('');
+}
+
+// ── Week view ────────────────────────────────
+const THAI_DAYS_SHORT = ['จ','อ','พ','พฤ','ศ'];
+let weekOffset = 0;
+
+function getWeekStart(offset) {
+  const d = new Date();
+  const dow = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function renderWeek() {
+  const start = getWeekStart(weekOffset);
+  const end = new Date(start); end.setDate(start.getDate() + 4);
+  const fmt = d => d.getDate() + '/' + (d.getMonth()+1);
+  document.getElementById('weekLabel').textContent =
+    'สัปดาห์ ' + fmt(start) + ' – ' + fmt(end);
+
+  const hours = [];
+  for (let h = 8; h <= 17; h++) hours.push(h);
+  const days = [];
+  for (let i = 0; i < 5; i++) { const d = new Date(start); d.setDate(start.getDate()+i); days.push(d); }
+
+  let html = '<div style="background:var(--muted);border-bottom:1px solid var(--border);"></div>';
+  days.forEach((d,i) => {
+    const isToday = d.toDateString() === new Date().toDateString();
+    html += `<div style="padding:0.5rem;text-align:center;background:var(--muted);border-bottom:1px solid var(--border);border-left:1px solid var(--border);font-size:0.8rem;font-weight:${isToday?'700':'500'};color:${isToday?'var(--primary)':'var(--fg)'};">${THAI_DAYS_SHORT[i]}<br>${d.getDate()}/${d.getMonth()+1}</div>`;
+  });
+
+  hours.forEach(h => {
+    html += `<div style="padding:0.375rem 0.5rem;font-size:0.72rem;color:var(--muted-fg);border-bottom:1px solid var(--border);text-align:right;">${h}:00</div>`;
+    days.forEach(d => {
+      const dateStr = d.toISOString().split('T')[0];
+      const bks = allBookings.filter(b => b.date === dateStr && parseInt(b.start_time) === h);
+      let cellHtml = '';
+      bks.forEach(b => {
+        const cls = b.status === 'approved' ? 'background:hsl(142,60%,38%,0.15);color:hsl(142,60%,28%);border:1px solid hsl(142,60%,38%,0.4);' : 'background:hsl(38,95%,50%,0.15);color:hsl(38,80%,30%);border:1px solid hsl(38,95%,50%,0.4);';
+        cellHtml += `<div style="font-size:0.65rem;padding:2px 4px;border-radius:3px;margin-bottom:2px;${cls}">${b.start_time}–${b.end_time} ${b.room_code}</div>`;
+      });
+      html += `<div style="padding:0.25rem;min-height:40px;border-bottom:1px solid var(--border);border-left:1px solid var(--border);">${cellHtml}</div>`;
+    });
+  });
+
+  document.getElementById('weekGrid').innerHTML = html;
+}
+
+function prevWeek() { weekOffset--; renderWeek(); }
+function nextWeek() { weekOffset++; renderWeek(); }
+function todayWeek() { weekOffset = 0; renderWeek(); }
+
+function switchView(view) {
+  document.getElementById('monthView').style.display = view === 'month' ? '' : 'none';
+  document.getElementById('weekView').style.display = view === 'week' ? '' : 'none';
+  document.getElementById('btnMonth').className = 'btn btn-sm ' + (view==='month'?'btn-primary':'btn-outline');
+  document.getElementById('btnWeek').className = 'btn btn-sm ' + (view==='week'?'btn-primary':'btn-outline');
+  if (view === 'week') renderWeek();
+}
+</script>
 {% endblock %}

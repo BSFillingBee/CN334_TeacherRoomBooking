@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}จัดการผู้ใช้งาน{% endblock %}
+{% block content %}
+<div>
+  <div style="display:flex;align-items:center;gap:0.875rem;margin-bottom:1.5rem;">
+    <div class="icon-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+    </div>
+    <div>
+      <h1 class="page-title">จัดการผู้ใช้งาน</h1>
+      <p class="page-sub">กำหนดสิทธิ์ Lecturer / Admin</p>
+    </div>
+  </div>
+
+  <div class="card" style="overflow:hidden;">
+    {% if users %}
+    <div style="divide-y:1px solid var(--border);">
+      {% for u in users %}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.875rem;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--grad-primary);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;">
+            {{ u.get_full_name|default:u.username|truncatechars:2|upper }}
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;">{{ u.get_full_name|default:u.username }}</div>
+            <div style="font-size:0.78rem;color:var(--muted-fg);">{{ u.username }} · {{ u.email }}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span class="badge {% if u.role == 'ADMIN' %}badge-approved{% else %}badge-outline{% endif %}">{{ u.get_role_display }}</span>
+          <form method="post" action="{% url 'set_user_role' u.id %}">
+            {% csrf_token %}
+            <div style="display:flex;gap:0.375rem;">
+              <select name="role" style="height:36px;width:180px;font-size:0.8rem;">
+                <option value="LECTURER" {% if u.role == 'LECTURER' %}selected{% endif %}>อาจารย์</option>
+                <option value="ADMIN" {% if u.role == 'ADMIN' %}selected{% endif %}>เจ้าหน้าที่ (Admin)</option>
+              </select>
+              <button type="submit" class="btn btn-outline btn-sm">บันทึก</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding:3rem;text-align:center;color:var(--muted-fg);">ยังไม่มีผู้ใช้ในระบบ</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

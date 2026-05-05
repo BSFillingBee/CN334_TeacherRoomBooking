@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}รายงานการใช้งาน{% endblock %}
+{% block content %}
+<div>
+  <div class="page-header">
+    <div style="display:flex;align-items:center;gap:0.875rem;">
+      <div class="icon-box" style="background:var(--grad-warm);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--secondary-fg)" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      </div>
+      <div><h1 class="page-title">รายงานการใช้งาน</h1><p class="page-sub">สถิติการจองห้องประชุม</p></div>
+    </div>
+    <a href="{% url 'reports_csv' %}?start={{ start }}&end={{ end }}" class="btn btn-outline">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </a>
+  </div>
+
+  <!-- Date filter -->
+  <form method="get" class="card" style="padding:1rem;margin-bottom:1.5rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+    <div class="form-group" style="margin:0;"><label>วันเริ่มต้น</label><input type="date" name="start" value="{{ start }}" style="width:160px;"></div>
+    <div class="form-group" style="margin:0;"><label>วันสิ้นสุด</label><input type="date" name="end" value="{{ end }}" style="width:160px;"></div>
+    <button type="submit" class="btn btn-primary">ดูรายงาน</button>
+  </form>
+
+  <!-- Summary stats -->
+  <div class="grid grid-3" style="margin-bottom:1.5rem;">
+    <div class="card stat-card"><div class="stat-label">การจองที่อนุมัติ</div><div class="stat-value">{{ summary.total }} ครั้ง</div></div>
+    <div class="card stat-card"><div class="stat-label">ชั่วโมงการใช้งาน</div><div class="stat-value">{{ summary.hours }} ชม.</div></div>
+    <div class="card stat-card"><div class="stat-label">อัตราใช้งานเฉลี่ย</div><div class="stat-value">{{ summary.utilization }}%</div></div>
+  </div>
+
+  <div class="grid grid-2">
+    <!-- By room -->
+    <div class="card" style="padding:1.5rem;">
+      <h2 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">สถิติแต่ละห้อง</h2>
+      {% for r in by_room %}
+      <div style="margin-bottom:0.875rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.375rem;">
+          <span style="font-weight:500;">{{ r.code }} {{ r.name }}</span>
+          <span style="color:var(--muted-fg);">{{ r.count }} ครั้ง · {{ r.hours }} ชม. · {{ r.utilization }}%</span>
+        </div>
+        <div style="height:8px;background:var(--muted);border-radius:9999px;overflow:hidden;">
+          <div style="height:100%;background:var(--grad-primary);border-radius:9999px;width:{{ r.bar_width }}%;transition:width 0.6s ease;"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- By type -->
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div class="card" style="padding:1.5rem;">
+        <h2 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">แยกตามประเภท</h2>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+            <span>สอนปกติ/ชดเชย/เสริม</span>
+            <span class="badge badge-approved">{{ by_type.TEACHING }} ครั้ง</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem;padding:0.5rem 0;">
+            <span>จัดอบรม/จัดติว</span>
+            <span class="badge badge-outline">{{ by_type.TRAINING }} ครั้ง</span>
+          </div>
+        </div>
+      </div>
+      {% if by_program %}
+      <div class="card" style="padding:1.5rem;">
+        <h2 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">แยกตามหลักสูตร</h2>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+          {% for prog, cnt in by_program.items %}
+          <div style="display:flex;justify-content:space-between;font-size:0.875rem;padding:0.375rem 0;border-bottom:1px solid var(--border);">
+            <span>{{ prog }}</span><span class="badge badge-outline">{{ cnt }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
