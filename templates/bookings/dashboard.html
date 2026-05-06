@@ -8,7 +8,10 @@
   <div class="hero">
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1.5rem;">
       <div>
-        <div style="font-size:0.85rem;opacity:0.8;margin-bottom:0.5rem;">สวัสดีตอนเช้า ☀️</div>
+        <div style="font-size:0.85rem;opacity:0.8;margin-bottom:0.5rem;display:inline-flex;align-items:center;gap:0.4rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          สวัสดีตอนเช้า
+        </div>
         <h1 style="font-size:2rem;font-weight:700;margin-bottom:0.375rem;color:var(--primary-fg);">{{ user.get_full_name|default:user.username }}</h1>
         <p style="opacity:0.8;font-size:0.9rem;">วันนี้มีห้องประชุม {{ today_bookings_count }} รายการที่อนุมัติแล้ว</p>
       </div>
@@ -42,9 +45,12 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
         <div>
           <h2 style="font-size:1.2rem;font-weight:700;">การประชุมวันนี้</h2>
-          <p style="font-size:0.8rem;color:var(--muted-fg);margin-top:0.125rem;">รายการที่ได้รับการอนุมัติแล้ว</p>
+          <p style="font-size:0.95rem;color:var(--muted-fg);margin-top:0.125rem;">รายการที่ได้รับการอนุมัติแล้ว</p>
         </div>
-        <a href="{% url 'calendar_view' %}" class="btn btn-outline btn-sm">ดูทั้งหมด →</a>
+        <a href="{% url 'calendar_view' %}" class="btn btn-outline btn-sm">
+          ดูทั้งหมด
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
       </div>
 
       {% if today_bookings %}
@@ -52,17 +58,17 @@
           {% for b in today_bookings %}
           <div style="display:flex;align-items:center;gap:1rem;padding:1rem;background:var(--muted);border-radius:0.625rem;border:1px solid var(--border);">
             <div style="min-width:56px;height:56px;background:var(--grad-warm);border-radius:0.5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--secondary-fg);">
-              <div style="font-weight:700;font-size:0.85rem;font-family:'Prompt',sans-serif;line-height:1;">{{ b.start_time|time:"H:i" }}</div>
-              <div style="font-size:0.65rem;opacity:0.7;">น.</div>
+              <div style="font-weight:700;font-size:0.85rem;font-family:'AppThai','AppLatin',sans-serif;line-height:1;">{{ b.start_time|time:"H:i" }}</div>
+              <div style="font-size:0.85rem;opacity:0.7;">น.</div>
             </div>
             <div style="flex:1;min-width:0;">
               <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 {% if b.purpose_type == 'TEACHING' %}{{ b.course_name }}{% else %}{{ b.topic }}{% endif %}
               </div>
-              <div style="font-size:0.75rem;color:var(--muted-fg);margin-top:0.25rem;">
+              <div style="font-size:0.9rem;color:var(--muted-fg);margin-top:0.25rem;">
                 ห้อง {{ b.room.code }} · {{ b.room.name }}
               </div>
-              <div style="font-size:0.75rem;color:var(--muted-fg);">จองโดย: <span style="color:var(--fg);font-weight:500;">{{ b.requester.get_full_name|default:b.requester.username }}</span></div>
+              <div style="font-size:0.9rem;color:var(--muted-fg);">จองโดย: <span style="color:var(--fg);font-weight:500;">{{ b.requester.get_full_name|default:b.requester.username }}</span></div>
             </div>
             <span class="badge badge-approved">อนุมัติแล้ว</span>
           </div>
@@ -85,11 +91,11 @@
       <div style="display:flex;flex-direction:column;gap:0.75rem;font-size:0.85rem;color:var(--secondary-fg);">
         <div style="padding:0.75rem;background:hsl(0,0%,100%,0.35);border-radius:0.5rem;backdrop-filter:blur(4px);">
           <div style="font-weight:600;margin-bottom:0.25rem;">ระบบเปิดใช้งานแล้ว</div>
-          <div style="font-size:0.75rem;opacity:0.8;">สามารถจองห้องประชุมออนไลน์ได้แล้ว</div>
+          <div style="font-size:0.9rem;opacity:0.8;">สามารถจองห้องประชุมออนไลน์ได้แล้ว</div>
         </div>
         <div style="padding:0.75rem;background:hsl(0,0%,100%,0.35);border-radius:0.5rem;backdrop-filter:blur(4px);">
           <div style="font-weight:600;margin-bottom:0.25rem;">เปิดใช้งาน AI Booking</div>
-          <div style="font-size:0.75rem;opacity:0.8;">พิมพ์ข้อความบอก AI เพื่อจองห้องอัตโนมัติ</div>
+          <div style="font-size:0.9rem;opacity:0.8;">พิมพ์ข้อความบอก AI เพื่อจองห้องอัตโนมัติ</div>
         </div>
       </div>
     </div>

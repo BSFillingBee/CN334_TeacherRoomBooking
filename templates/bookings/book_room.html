@@ -34,12 +34,12 @@
             <label class="room-btn {% if selected_room_id == room.id|stringformat:'s' %}selected{% endif %}" onclick="selectRoom('{{ room.id }}')">
               <input type="radio" name="roomId" value="{{ room.id }}" style="display:none;" {% if selected_room_id == room.id|stringformat:'s' %}checked{% endif %}>
               <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:0.375rem;">
-                <span style="font-size:0.7rem;padding:0.15rem 0.5rem;background:var(--muted);border-radius:9999px;font-weight:500;color:var(--muted-fg);">{{ room.code }}</span>
+                <span style="font-size:0.88rem;padding:0.15rem 0.5rem;background:var(--muted);border-radius:9999px;font-weight:500;color:var(--muted-fg);">{{ room.code }}</span>
 
               </div>
               {% if room.thumb %}<img src="{% static room.thumb %}" alt="{{ room.name }}" style="width:100%;height:64px;object-fit:cover;border-radius:0.375rem;margin-bottom:0.375rem;">{% endif %}
               <div style="font-weight:600;font-size:0.9rem;">{{ room.name }}</div>
-              <div style="font-size:0.75rem;color:var(--muted-fg);display:flex;align-items:center;gap:0.25rem;margin-top:0.25rem;">
+              <div style="font-size:0.9rem;color:var(--muted-fg);display:flex;align-items:center;gap:0.25rem;margin-top:0.25rem;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                 {{ room.capacity }} คน
               </div>
@@ -66,7 +66,7 @@
           <div style="margin-bottom:1rem;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
               <label style="font-size:0.875rem;font-weight:500;">วันในสัปดาห์</label>
-              <button type="button" onclick="toggleAllDays()" style="font-size:0.75rem;color:var(--primary);background:none;border:none;cursor:pointer;">เลือกทุกวัน</button>
+              <button type="button" onclick="toggleAllDays()" style="font-size:0.9rem;color:var(--primary);background:none;border:none;cursor:pointer;">เลือกทุกวัน</button>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
               {% for d in days_of_week %}
@@ -151,7 +151,7 @@
         <h3 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">สรุปการจอง</h3>
         <div style="display:flex;flex-direction:column;gap:0.875rem;font-size:0.875rem;">
           <div>
-            <div style="font-size:0.75rem;color:var(--muted-fg);margin-bottom:0.125rem;">ห้อง</div>
+            <div style="font-size:0.9rem;color:var(--muted-fg);margin-bottom:0.125rem;">ห้อง</div>
             <div style="font-weight:600;" id="summaryRoom">— กรุณาเลือกห้อง</div>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;color:var(--fg);">
@@ -164,14 +164,14 @@
           </div>
           <hr class="divider">
           <div>
-            <div style="font-size:0.75rem;color:var(--muted-fg);margin-bottom:0.125rem;">ผู้จอง</div>
+            <div style="font-size:0.9rem;color:var(--muted-fg);margin-bottom:0.125rem;">ผู้จอง</div>
             <div style="font-weight:600;">{{ user.get_full_name|default:user.username }}</div>
           </div>
         </div>
         <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:1.25rem;justify-content:center;">
           ส่งคำขอจอง
         </button>
-        <p style="font-size:0.7rem;color:var(--muted-fg);text-align:center;margin-top:0.625rem;">ระบบจะส่งอีเมลแจ้งเตือนเมื่ออนุมัติ</p>
+        <p style="font-size:0.88rem;color:var(--muted-fg);text-align:center;margin-top:0.625rem;">ระบบจะส่งอีเมลแจ้งเตือนเมื่ออนุมัติ</p>
       </div>
     </div>
   </form>

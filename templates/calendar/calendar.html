@@ -132,7 +132,7 @@ function selectDay(dateStr) {
   const bks = allBookings.filter(b => b.date === dateStr);
   const container = document.getElementById('dayBookings');
   if (!bks.length) {
-    container.innerHTML = '<p style="text-align:center;padding:2rem 0;color:var(--muted-fg);">ห้องประชุมว่างทั้งหมด ✨</p>';
+    container.innerHTML = '<p style="text-align:center;padding:2rem 0;color:var(--muted-fg);">ห้องประชุมว่างทั้งหมด</p>';
     return;
   }
   container.innerHTML = bks.map(b => `

@@ -1,4 +1,28 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    @font-face{
+      font-family:'AppThai';
+      src:url('../font/Quark-Light.otf') format('opentype');
+      font-weight:400;
+      font-style:normal;
+    }
+    @font-face{
+      font-family:'AppThai';
+      src:url('../font/Quark-Bold.otf') format('opentype');
+      font-weight:700;
+      font-style:normal;
+    }
+    @font-face{
+      font-family:'AppLatin';
+      src:url('../font/Changa-Regular.ttf') format('truetype');
+      font-weight:400;
+      font-style:normal;
+    }
+    @font-face{
+      font-family:'AppLatin';
+      src:url('../font/Changa-Bold.ttf') format('truetype');
+      font-weight:700;
+      font-style:normal;
+    }
     :root{
       --primary:hsl(0,75%,28%);--primary-fg:hsl(48,100%,96%);
       --secondary:hsl(48,100%,50%);--secondary-fg:hsl(0,75%,18%);
@@ -8,85 +32,97 @@
       --grad-primary:linear-gradient(135deg,hsl(0,75%,28%),hsl(0,70%,42%));
       --shadow-lg:0 10px 40px -12px hsl(0,75%,28%,0.3);
     }
-    html{font-family:'IBM Plex Sans Thai',system-ui,sans-serif}
-    body{background:var(--bg);color:var(--fg);min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
-    h1,h2,h3{font-family:'Prompt',sans-serif;letter-spacing:-0.02em}
+    html{font-family:'AppThai','AppLatin',system-ui,sans-serif;font-size:18px}
+    body{
+      background:
+        linear-gradient(hsl(0,50%,12%,0.55),hsl(0,50%,12%,0.45)),
+        url('../images/login_bg.jpg') center 14%/cover no-repeat;
+      color:var(--fg);min-height:100vh;display:grid;grid-template-columns:1.1fr 0.9fr;line-height:1.6;
+      position:relative;overflow:hidden;
+    }
+    body::before{
+      content:'';
+      position:absolute;top:-2rem;right:-10rem;
+      width:24rem;height:24rem;background:hsl(48,100%,50%,0.22);
+      border-radius:50%;filter:blur(60px);pointer-events:none;z-index:0;
+    }
+    h1,h2,h3{font-family:'AppThai','AppLatin',sans-serif;letter-spacing:-0.02em}
     a{text-decoration:none;color:inherit}
 
     /* Left panel */
     .brand{
-      background:var(--grad-hero);padding:3rem;
+      padding:3.5rem;
       display:flex;flex-direction:column;justify-content:space-between;
       color:var(--primary-fg);position:relative;overflow:hidden;
+      background:transparent;
     }
     .brand::before{
-      content:'';position:absolute;top:-5rem;right:-5rem;
-      width:20rem;height:20rem;background:hsl(48,100%,50%,0.2);
-      border-radius:50%;filter:blur(60px);
+      content:none;
     }
     .brand::after{
       content:'';position:absolute;bottom:-8rem;left:-5rem;
       width:20rem;height:20rem;background:hsl(0,70%,42%,0.3);
       border-radius:50%;filter:blur(60px);
     }
+    .brand,.form-panel{position:relative;z-index:1}
     .brand>*{position:relative;z-index:1}
     .brand-logo{display:flex;align-items:center;gap:1rem}
     .logo-box{
       width:64px;height:64px;border-radius:0.875rem;
       background:var(--secondary);color:var(--secondary-fg);
       display:flex;align-items:center;justify-content:center;
-      font-family:'Prompt',sans-serif;font-weight:800;font-size:1.5rem;
+      font-family:'AppThai','AppLatin',sans-serif;font-weight:800;font-size:1.5rem;
     }
-    .brand-name{font-size:1.375rem;font-weight:700;line-height:1.2}
-    .brand-sub{font-size:0.8rem;opacity:0.75;margin-top:0.125rem}
+    .brand-name{font-size:1.6rem;font-weight:700;line-height:1.2}
+    .brand-sub{font-size:0.95rem;opacity:0.75;margin-top:0.125rem}
     .brand-pill{
       display:inline-flex;align-items:center;gap:0.5rem;
       padding:0.375rem 0.875rem;background:hsl(48,100%,50%,0.2);
       border:1px solid hsl(48,100%,50%,0.35);border-radius:9999px;
-      font-size:0.75rem;font-weight:500;margin-bottom:1rem;
+      font-size:0.9rem;font-weight:500;margin-bottom:1rem;
     }
     .pill-dot{width:6px;height:6px;background:var(--secondary);border-radius:50%;animation:pulse 2s infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-    .brand-heading{font-size:3rem;font-weight:800;line-height:1.1;margin-bottom:1rem}
-    .brand-desc{font-size:1rem;opacity:0.8;line-height:1.65;max-width:380px}
+    .brand-heading{font-size:3.4rem;font-weight:800;line-height:1.1;margin-bottom:1rem}
+    .brand-desc{font-size:1.08rem;opacity:0.8;line-height:1.7;max-width:420px}
     .brand-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;padding-top:1.5rem}
-    .brand-stat-label{font-size:0.75rem;opacity:0.75;margin-top:0.375rem}
-    .brand-copy{font-size:0.75rem;opacity:0.5}
+    .brand-stat-label{font-size:0.9rem;opacity:0.75;margin-top:0.375rem}
+    .brand-copy{font-size:0.9rem;opacity:0.5}
 
     /* Right — form */
-    .form-panel{display:flex;align-items:center;justify-content:center;padding:2rem}
+    .form-panel{display:flex;align-items:center;justify-content:center;padding:2.5rem;background:transparent}
     .form-card{
-      width:100%;max-width:420px;background:var(--card);
+      width:100%;max-width:500px;background:var(--card);
       border:1px solid var(--border);border-radius:1.25rem;
-      padding:2.5rem;box-shadow:var(--shadow-lg);
+      padding:2.8rem;box-shadow:var(--shadow-lg);
     }
-    .form-title{font-size:2rem;font-weight:700;margin-bottom:0.5rem}
-    .form-sub{font-size:0.875rem;color:var(--muted-fg);margin-bottom:2rem;line-height:1.5}
+    .form-title{font-size:2.2rem;font-weight:700;margin-bottom:0.5rem}
+    .form-sub{font-size:1rem;color:var(--muted-fg);margin-bottom:2rem;line-height:1.6}
     .form-sub strong{color:var(--primary)}
     .form-group{display:flex;flex-direction:column;gap:0.375rem;margin-bottom:1.25rem}
-    .form-label{font-size:0.875rem;font-weight:500}
+    .form-label{font-size:0.95rem;font-weight:500}
     .form-row{display:flex;justify-content:space-between;align-items:center}
-    .form-link{font-size:0.75rem;color:var(--primary)}
+    .form-link{font-size:0.9rem;color:var(--primary)}
     .form-input{
-      height:2.75rem;padding:0 0.875rem;
+      height:3.1rem;padding:0 1rem;
       border:1px solid var(--border);border-radius:0.625rem;
       background:var(--card);color:var(--fg);
-      font-size:0.875rem;font-family:'IBM Plex Sans Thai',sans-serif;
+      font-size:0.95rem;font-family:'AppThai','AppLatin',sans-serif;
       width:100%;outline:none;transition:border-color 0.2s,box-shadow 0.2s;
     }
     .form-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px hsl(0,75%,28%,0.12)}
     .btn-login{
-      width:100%;height:2.75rem;border:none;border-radius:0.625rem;
+      width:100%;height:3.1rem;border:none;border-radius:0.625rem;
       background:var(--grad-primary);color:var(--primary-fg);
-      font-size:0.9rem;font-weight:600;cursor:pointer;
-      font-family:'IBM Plex Sans Thai',sans-serif;
+      font-size:1rem;font-weight:600;cursor:pointer;
+      font-family:'AppThai','AppLatin',sans-serif;
       box-shadow:var(--shadow-lg);transition:opacity 0.2s;
       margin-top:0.5rem;
     }
     .btn-login:hover{opacity:0.9}
-    .divider{display:flex;align-items:center;gap:1rem;margin:1.5rem 0;color:var(--muted-fg);font-size:0.75rem}
+    .divider{display:flex;align-items:center;gap:1rem;margin:1.5rem 0;color:var(--muted-fg);font-size:0.9rem}
     .divider::before,.divider::after{content:'';flex:1;border-top:1px solid var(--border)}
-    .form-note{font-size:0.75rem;color:var(--muted-fg);text-align:center}
+    .form-note{font-size:0.9rem;color:var(--muted-fg);text-align:center}
     .alert-error{
       background:hsl(0,84%,50%,0.1);border:1px solid hsl(0,84%,50%,0.3);
       color:hsl(0,75%,35%);padding:0.75rem 1rem;border-radius:0.5rem;
@@ -96,6 +132,8 @@
       body{grid-template-columns:1fr}
       .brand{display:none}
       .form-panel{padding:1.5rem}
+      .form-card{max-width:100%;padding:2rem}
+      .form-title{font-size:1.8rem}
     }
     @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
     .form-card{animation:fadeIn 0.35s ease}
