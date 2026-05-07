@@ -395,6 +395,59 @@ def floor_map(request):
 
 # ─── AI Booking ────────────────────────────────────────────────────────────────
 
+def _extract_json_object(text):
+    text = (text or '').strip()
+    if text.startswith('```'):
+        text = text.strip('`')
+        text = text.replace('json', '', 1).strip()
+    start = text.find('{')
+    end = text.rfind('}')
+    if start >= 0 and end >= start:
+        text = text[start:end + 1]
+    return json.loads(text)
+
+
+def _resolve_room(value):
+    raw = str(value or '').strip()
+    if not raw:
+        raise ValueError('AI ยังไม่ได้ระบุห้อง')
+    room = None
+    if raw.isdigit():
+        room = Room.objects.filter(pk=int(raw), is_active=True).first()
+    if room is None:
+        room = Room.objects.filter(code__iexact=raw, is_active=True).first()
+    if room is None:
+        raise ValueError(f'ไม่พบห้อง {raw}')
+    return room
+
+
+def _validate_ai_booking(parsed):
+    room = _resolve_room(parsed.get('roomId') or parsed.get('roomCode') or parsed.get('room'))
+    booking_date = datetime.strptime(str(parsed.get('date')), '%Y-%m-%d').date()
+    start_time = datetime.strptime(str(parsed.get('start')), '%H:%M').time()
+    end_time = datetime.strptime(str(parsed.get('end')), '%H:%M').time()
+    if start_time >= end_time:
+        raise ValueError('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น')
+
+    conflicts = Booking.objects.filter(
+        room=room, status__in=['APPROVED', 'PENDING'],
+        start_date__lte=booking_date, end_date__gte=booking_date,
+        start_time__lt=end_time, end_time__gt=start_time,
+    )
+    for booking in conflicts:
+        if str(booking_date.weekday()) in booking.get_days_list():
+            raise ValueError(f'ห้อง {room.code} มีการจองในช่วงเวลานี้แล้ว')
+
+    parsed['roomId'] = str(room.id)
+    parsed['roomCode'] = room.code
+    parsed['roomName'] = room.name
+    parsed['date'] = booking_date.isoformat()
+    parsed['start'] = start_time.strftime('%H:%M')
+    parsed['end'] = end_time.strftime('%H:%M')
+    parsed['attendees'] = parsed.get('attendees') or ''
+    parsed['purpose'] = (parsed.get('purpose') or 'จองผ่าน AI').strip()
+    return parsed
+
 @login_required
 def ai_booking(request):
     if request.method == 'POST':
@@ -412,7 +465,7 @@ def ai_booking(request):
 
         rooms = [{'id': str(r.id), 'code': r.code, 'name': r.name, 'capacity': r.capacity}
                  for r in Room.objects.filter(is_active=True).order_by('code')]
-        today = date.today().isoformat()
+        today = timezone.localdate().isoformat()
 
         try:
             resp = requests.post(
@@ -421,7 +474,15 @@ def ai_booking(request):
                 json={
                     'model': settings.AI_MODEL,
                     'messages': [
-                        {'role': 'system', 'content': 'You convert Thai room booking requests to JSON. Return only JSON with keys: roomId, date (YYYY-MM-DD), start (HH:MM), end (HH:MM), attendees, purpose, reply.'},
+                        {'role': 'system', 'content': (
+                            'You convert Thai room booking requests to JSON for a university room booking system. '
+                            'Return only JSON. Required keys: roomId, roomCode, date, start, end, attendees, purpose, reply. '
+                            'Use roomId from the provided rooms list. If the user names a room code, map it to the matching id. '
+                            'Use today from the user JSON as the current date. Dates must be YYYY-MM-DD. '
+                            'Interpret Thai time carefully: บ่าย 2 = 14:00, บ่าย 3 = 15:00, บ่าย 4 = 16:00, เช้า 9 = 09:00. '
+                            'For ranges like บ่าย 2-4 โมง, start is 14:00 and end is 16:00. '
+                            'If information is missing, still return JSON and explain the missing field in reply.'
+                        )},
                         {'role': 'user', 'content': json.dumps({'today': today, 'rooms': rooms, 'request': message}, ensure_ascii=False)},
                     ],
                     'temperature': 0.2, 'response_format': {'type': 'json_object'},
@@ -429,7 +490,8 @@ def ai_booking(request):
                 timeout=30,
             )
             resp.raise_for_status()
-            parsed = json.loads(resp.json()['choices'][0]['message']['content'])
+            parsed = _extract_json_object(resp.json()['choices'][0]['message']['content'])
+            parsed = _validate_ai_booking(parsed)
             return JsonResponse({'message': parsed.get('reply', 'AI เตรียมข้อมูลให้แล้ว'), 'parsed': parsed})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=502)
@@ -445,13 +507,21 @@ def ai_booking(request):
 @require_POST
 def ai_confirm_booking(request):
     try:
-        room = get_object_or_404(Room, pk=request.POST.get('roomId'), is_active=True)
-        start_date = datetime.strptime(request.POST.get('date'), '%Y-%m-%d').date()
-        start_time = datetime.strptime(request.POST.get('startTime'), '%H:%M').time()
-        end_time = datetime.strptime(request.POST.get('endTime'), '%H:%M').time()
+        parsed = {
+            'roomId': request.POST.get('roomId'),
+            'date': request.POST.get('date'),
+            'start': request.POST.get('startTime'),
+            'end': request.POST.get('endTime'),
+            'purpose': request.POST.get('purpose'),
+        }
+        parsed = _validate_ai_booking(parsed)
+        room = get_object_or_404(Room, pk=parsed['roomId'], is_active=True)
+        start_date = datetime.strptime(parsed['date'], '%Y-%m-%d').date()
+        start_time = datetime.strptime(parsed['start'], '%H:%M').time()
+        end_time = datetime.strptime(parsed['end'], '%H:%M').time()
         booking = Booking.objects.create(
             requester=request.user, room=room,
-            purpose_type='TRAINING', topic=request.POST.get('purpose', 'จองผ่าน AI'),
+            purpose_type='TRAINING', topic=parsed['purpose'],
             start_date=start_date, end_date=start_date,
             days_of_week=str(start_date.weekday()),
             start_time=start_time, end_time=end_time,

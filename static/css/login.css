@@ -68,10 +68,11 @@
     .brand>*{position:relative;z-index:1}
     .brand-logo{display:flex;align-items:center;gap:1rem}
     .logo-box{
-      width:64px;height:64px;border-radius:0.875rem;
-      background:var(--secondary);color:var(--secondary-fg);
+      width:64px;height:64px;border-radius:0;
+      background:transparent;color:var(--secondary-fg);
       display:flex;align-items:center;justify-content:center;
       font-family:'AppThai','AppLatin',sans-serif;font-weight:800;font-size:1.5rem;
+      object-fit:contain;padding:0;flex-shrink:0;
     }
     .brand-name{font-size:1.6rem;font-weight:700;line-height:1.2}
     .brand-sub{font-size:0.95rem;opacity:0.75;margin-top:0.125rem}
