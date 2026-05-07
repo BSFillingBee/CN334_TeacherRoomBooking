@@ -157,8 +157,8 @@ BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
 
 # AI booking assistant
 AI_API_KEY = os.getenv('AI_API_KEY', '')
-AI_API_BASE = os.getenv('AI_API_BASE', 'https://api.openai.com/v1')
-AI_MODEL = os.getenv('AI_MODEL', 'gpt-4o-mini')
+AI_API_BASE = os.getenv('AI_API_BASE', 'https://generativelanguage.googleapis.com/v1beta/openai')
+AI_MODEL = os.getenv('AI_MODEL', 'gemini-1.5-flash')
 
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
