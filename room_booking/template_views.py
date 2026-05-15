@@ -137,7 +137,23 @@ def book_room(request):
 
     selected_room_id = request.GET.get('roomId', str(rooms.first().id) if rooms.exists() else '')
     today = date.today().isoformat()
-    weekday = str(date.today().weekday())
+    requested_start = request.GET.get('startDate') or today
+    requested_end = request.GET.get('endDate') or requested_start
+    try:
+        initial_start_date = datetime.strptime(requested_start, '%Y-%m-%d').date()
+    except ValueError:
+        initial_start_date = date.today()
+        requested_start = initial_start_date.isoformat()
+    try:
+        initial_end_date = datetime.strptime(requested_end, '%Y-%m-%d').date()
+    except ValueError:
+        initial_end_date = initial_start_date
+        requested_end = initial_end_date.isoformat()
+    if initial_end_date < initial_start_date:
+        initial_end_date = initial_start_date
+        requested_end = requested_start
+
+    weekday = str(initial_start_date.weekday())
     selected_days = [weekday] if int(weekday) <= 4 else ['0']
 
     if request.method == 'POST':
@@ -209,6 +225,8 @@ def book_room(request):
                 'rooms': rooms, 'rooms_json': rooms_json,
                 'time_slots': TIME_SLOTS, 'days_of_week': DAYS_OF_WEEK,
                 'programs': PROGRAMS, 'today': today,
+                'initial_start_date': start_date_str or today,
+                'initial_end_date': end_date_str or start_date_str or today,
                 'selected_room_id': room_id,
                 'selected_days': days_raw.split(','),
                 'selected_days_json': json.dumps(days_raw.split(',')),
@@ -221,6 +239,8 @@ def book_room(request):
         'rooms': rooms, 'rooms_json': rooms_json,
         'time_slots': TIME_SLOTS, 'days_of_week': DAYS_OF_WEEK,
         'programs': PROGRAMS, 'today': today,
+        'initial_start_date': requested_start,
+        'initial_end_date': requested_end,
         'selected_room_id': request.GET.get('roomId', selected_room_id),
         'selected_days': selected_days,
         'selected_days_json': json.dumps(selected_days),
@@ -233,7 +253,7 @@ def book_room(request):
 def cancel_booking(request, pk):
     booking = get_object_or_404(Booking, pk=pk, requester=request.user)
     if booking.status in ('PENDING', 'APPROVED'):
-        if booking.start_date <= date.today():
+        if booking.status == 'APPROVED' and booking.start_date <= date.today():
             messages.error(request, 'ไม่สามารถยกเลิกการจองที่ถึงหรือผ่านวันใช้งานแล้ว')
             return redirect('my_bookings')
         booking.status = 'CANCELLED'

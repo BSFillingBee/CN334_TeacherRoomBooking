@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import models
 from django.conf import settings
 from rooms.models import Room
@@ -118,3 +120,44 @@ class Booking(models.Model):
     
     def get_days_list(self):
         return [d.strip() for d in self.days_of_week.split(',') if d.strip()]
+
+    def get_occurrence_dates(self):
+        days = set(self.get_days_list())
+        dates = []
+        current = self.start_date
+        while current <= self.end_date:
+            if str(current.weekday()) in days:
+                dates.append(current)
+            current += timedelta(days=1)
+        return dates
+
+    @property
+    def occurrence_dates_display(self):
+        dates = self.get_occurrence_dates()
+        if not dates:
+            dates = [self.start_date]
+
+        thai_months = {
+            1: 'ม.ค.',
+            2: 'ก.พ.',
+            3: 'มี.ค.',
+            4: 'เม.ย.',
+            5: 'พ.ค.',
+            6: 'มิ.ย.',
+            7: 'ก.ค.',
+            8: 'ส.ค.',
+            9: 'ก.ย.',
+            10: 'ต.ค.',
+            11: 'พ.ย.',
+            12: 'ธ.ค.',
+        }
+
+        grouped = {}
+        for d in dates:
+            grouped.setdefault((d.year, d.month), []).append(d.day)
+
+        parts = []
+        for (year, month), days in grouped.items():
+            day_text = ', '.join(str(day) for day in days)
+            parts.append(f"{day_text} {thai_months[month]} {year}")
+        return ', '.join(parts)

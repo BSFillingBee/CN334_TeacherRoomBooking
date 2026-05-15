@@ -55,11 +55,11 @@
           <div class="grid grid-2" style="margin-bottom:1rem;">
             <div class="form-group">
               <label>วันเริ่มต้น</label>
-              <input type="date" name="startDate" value="{{ form_data.startDate|default:today }}" required>
+              <input type="date" name="startDate" value="{{ form_data.startDate|default:initial_start_date|default:today }}" required>
             </div>
             <div class="form-group">
               <label>วันสิ้นสุด</label>
-              <input type="date" name="endDate" value="{{ form_data.endDate|default:today }}" required>
+              <input type="date" name="endDate" value="{{ form_data.endDate|default:initial_end_date|default:today }}" required>
             </div>
           </div>
 
