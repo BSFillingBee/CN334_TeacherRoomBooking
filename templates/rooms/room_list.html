@@ -6,7 +6,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">ห้องประชุมทั้งหมด</h1>
-      <p class="page-sub">{{ rooms|length }} ห้องประชุม · ภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์</p>
+      <p class="page-sub">{{ rooms|length }} ห้อง · ภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์</p>
     </div>
   </div>
 
@@ -17,8 +17,8 @@
       <input type="text" name="q" value="{{ q }}" placeholder="ค้นหาห้องตามชื่อหรือเลขห้อง..." style="padding-left:2.5rem;height:2.75rem;">
     </div>
     <div style="display:flex;gap:0.5rem;">
-      {% for sz in sizes %}
-      <a href="?q={{ q }}&size={{ sz.value }}" class="btn {% if current_size == sz.value %}btn-primary{% else %}btn-outline{% endif %}">{{ sz.label }}</a>
+      {% for t in room_types %}
+      <a href="?q={{ q }}&type={{ t.value }}" class="btn {% if current_type == t.value %}btn-primary{% else %}btn-outline{% endif %}">{{ t.label }}</a>
       {% endfor %}
     </div>
   </form>
@@ -37,7 +37,7 @@
         {% endif %}
         <span style="position:absolute;top:0.75rem;left:0.75rem;background:var(--card);border:1px solid var(--border);font-size:0.88rem;padding:0.2rem 0.625rem;border-radius:9999px;font-weight:600;">ห้อง {{ room.code }}</span>
         <span style="position:absolute;top:0.75rem;right:0.75rem;background:var(--secondary);color:var(--secondary-fg);font-size:0.88rem;padding:0.2rem 0.625rem;border-radius:9999px;font-weight:600;">
-          {% if room.capacity >= 20 %}ใหญ่{% elif room.capacity >= 10 %}กลาง{% else %}เล็ก{% endif %}
+          {{ room.get_room_type_display }}
         </span>
       </div>
       <div style="padding:1.25rem;">

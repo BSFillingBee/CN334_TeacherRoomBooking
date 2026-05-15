@@ -101,3 +101,41 @@ def send_cancellation_notice_to_admin(booking):
         send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, admin_emails, fail_silently=False)
     except Exception as e:
         print(f'[Email Error] send_cancellation_notice_to_admin: {e}')
+
+
+def send_reminder_emails():
+    """ส่ง Email เตือนผู้จองล่วงหน้า 1 วันก่อนวันใช้งาน (ควร run ทุกวันตอนเช้า)"""
+    from datetime import date, timedelta
+    tomorrow = date.today() + timedelta(days=1)
+    bookings = Booking.objects.filter(
+        status='APPROVED',
+        start_date__lte=tomorrow,
+        end_date__gte=tomorrow,
+    ).select_related('room', 'requester')
+
+    sent = 0
+    for booking in bookings:
+        # check ว่าพรุ่งนี้อยู่ใน days_of_week ของ booking นี้ไหม
+        if str(tomorrow.weekday()) not in booking.get_days_list():
+            continue
+        recipient = booking.requester.email
+        if not recipient:
+            continue
+        purpose = booking.course_name if booking.purpose_type == 'TEACHING' else booking.topic
+        subject = f'[เตือนความจำ] การจองห้อง {booking.room.code} พรุ่งนี้'
+        message = (
+            f'เรียน {booking.requester.get_full_name() or booking.requester.username}\n\n'
+            f'ขอเตือนว่าคุณมีการจองห้องในวันพรุ่งนี้\n\n'
+            f'ห้อง: {booking.room.code} — {booking.room.name}\n'
+            f'วัตถุประสงค์: {purpose or "-"}\n'
+            f'วันที่: {tomorrow}\n'
+            f'เวลา: {booking.start_time.strftime("%H:%M")} - {booking.end_time.strftime("%H:%M")}\n\n'
+            f'กรุณาเตรียมตัวให้พร้อมและมาตรงเวลา\n'
+            f'ดูรายการจองได้ที่: {_base_url()}/bookings/my/'
+        )
+        try:
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient], fail_silently=False)
+            sent += 1
+        except Exception as e:
+            print(f'[Email Error] send_reminder for booking {booking.id}: {e}')
+    return sent

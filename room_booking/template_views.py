@@ -21,7 +21,7 @@ User = get_user_model()
 
 THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
                'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
-TIME_SLOTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00']
+TIME_SLOTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00']
 DAYS_OF_WEEK = [
     {'value': '0', 'label': 'จันทร์'},
     {'value': '1', 'label': 'อังคาร'},
@@ -46,19 +46,31 @@ ROOM_THUMB = {
     '408-2/1': 'images/rooms/408-2_1.jpg',
     '408-2/2': 'images/rooms/408-2_2.jpg',
 }
-ROOM_INROOM = {
-    '406-3':   'images/rooms/inroom406-3.jpg',
-    '406-5':   'images/rooms/inroom406-5.jpg',
-    '408-1':   'images/rooms/408-1.jpg',
-    '408-2/1': 'images/rooms/408-2_1.jpg',
-    '408-2/2': 'images/rooms/408-2_2.jpg',
+# Multiple images per room (list)
+ROOM_IMAGES = {
+    '406-3':   ['images/rooms/inroom406-3.jpg', 'images/rooms/406-3.jpg'],
+    '406-5':   ['images/rooms/inroom406-5.jpg', 'images/rooms/inroom406-5(1).jpg', 'images/rooms/406-5.jpg'],
+    '408-1':   ['images/rooms/408-1.jpg'],
+    '408-2/1': ['images/rooms/408-2_1.jpg', 'images/rooms/408-2_2.jpg'],
+    '408-2/2': ['images/rooms/408-2_2.jpg', 'images/rooms/408-2_1.jpg'],
+}
+# Equipment per room
+ROOM_EQUIPMENT = {
+    '406-3':   ['โปรเจกเตอร์', 'ไวท์บอร์ด', 'ระบบเสียง', 'แอร์', 'Wi-Fi'],
+    '406-5':   ['โปรเจกเตอร์', 'ไวท์บอร์ด', 'แอร์', 'Wi-Fi'],
+    '408-1':   ['โปรเจกเตอร์', 'ไวท์บอร์ด', 'แอร์', 'Wi-Fi'],
+    '408-2/1': ['โปรเจกเตอร์', 'ไวท์บอร์ด', 'แอร์', 'Wi-Fi'],
+    '408-2/2': ['โปรเจกเตอร์', 'ไวท์บอร์ด', 'แอร์', 'Wi-Fi'],
 }
 
 def get_room_thumb(room):
     return ROOM_THUMB.get(room.code, '')
 
-def get_room_inroom(room):
-    return ROOM_INROOM.get(room.code, '')
+def get_room_images(room):
+    return ROOM_IMAGES.get(room.code, [])
+
+def get_room_equipment(room):
+    return ROOM_EQUIPMENT.get(room.code, [])
 
 
 def login_view(request):
@@ -350,26 +362,23 @@ def calendar_view(request):
 @login_required
 def room_list(request):
     q = request.GET.get('q', '')
-    current_size = request.GET.get('size', 'all')
+    current_type = request.GET.get('type', 'all')
     rooms = Room.objects.filter(is_active=True).order_by('code')
     if q:
         rooms = rooms.filter(name__icontains=q) | Room.objects.filter(code__icontains=q, is_active=True)
-    if current_size == 'small':
-        rooms = rooms.filter(capacity__lt=10)
-    elif current_size == 'medium':
-        rooms = rooms.filter(capacity__gte=10, capacity__lt=20)
-    elif current_size == 'large':
-        rooms = rooms.filter(capacity__gte=20)
+    if current_type == 'MEETING':
+        rooms = rooms.filter(room_type='MEETING')
+    elif current_type == 'LECTURE':
+        rooms = rooms.filter(room_type='LECTURE')
 
-    sizes = [
+    room_types = [
         {'value': 'all', 'label': 'ทั้งหมด'},
-        {'value': 'small', 'label': 'เล็ก'},
-        {'value': 'medium', 'label': 'กลาง'},
-        {'value': 'large', 'label': 'ใหญ่'},
+        {'value': 'MEETING', 'label': 'ห้องประชุม'},
+        {'value': 'LECTURE', 'label': 'ห้องบรรยาย'},
     ]
     for room in rooms:
         room.thumb = get_room_thumb(room)
-    return render(request, 'rooms/room_list.html', {'rooms': rooms, 'q': q, 'current_size': current_size, 'sizes': sizes})
+    return render(request, 'rooms/room_list.html', {'rooms': rooms, 'q': q, 'current_type': current_type, 'room_types': room_types})
 
 
 @login_required
@@ -377,19 +386,55 @@ def room_detail(request, pk):
     room = get_object_or_404(Room, pk=pk)
     recent = Booking.objects.filter(room=room).select_related('requester').order_by('-created_at')[:5]
     room.thumb = get_room_thumb(room)
-    room.inroom = get_room_inroom(room)
-    return render(request, 'rooms/room_detail.html', {'room': room, 'recent_bookings': recent})
+    room_images = get_room_images(room)
+    room_equipment = get_room_equipment(room)
+    return render(request, 'rooms/room_detail.html', {
+        'room': room,
+        'recent_bookings': recent,
+        'room_images': room_images,
+        'room_equipment': room_equipment,
+    })
 
 
 @login_required
 def floor_map(request):
+    # Room positions on the floor plan image (left%, top%)
+    # Based on ECE Building 3 Floor 4 map
+    ROOM_POSITIONS = {
+        '406':   (62, 83), '406-1': (59, 83), '406-2': (55, 83),
+        '406-3': (56, 73), '406-4': (63, 73),
+        '406-5': (70, 67), '406-6': (64, 67), '406-7': (57, 67),
+        '407':   (49, 88), '408':   (26, 88),
+        '408-1': (36, 78), '408-2': (28, 78), '408-3': (19, 78),
+        '408-4': (19, 93), '408-5': (28, 93), '408-6': (36, 93),
+        '409':   (20, 68),
+        '410':   (25, 52), '410-1': (37, 47), '410-2': (28, 47), '410-3': (19, 47),
+        '410-4': (19, 57), '410-5': (28, 57), '410-6': (37, 57),
+        '411':   (22, 35),
+        '411-1': (37, 40), '411-2': (28, 40), '411-3': (19, 40),
+        '411-4': (19, 28), '411-5': (28, 28), '411-6': (37, 28),
+        '412':   (20, 14),
+        '412-1': (42, 9),  '412-2': (33, 9),  '412-3': (24, 9),  '412-4': (15, 9),
+        '412-5': (15, 15), '412-6': (15, 21), '412-7': (15, 27),
+        '412-8': (37, 20), '412-9': (37, 14),
+        '416':   (44, 17),
+        '418':   (72, 14),
+        '418-1': (57, 25), '418-2': (67, 25),
+        '418-3': (84, 25), '418-4': (84, 17), '418-5': (84, 11),
+        '418-6': (84, 6),  '418-7': (76, 6),  '418-8': (67, 6),  '418-9': (58, 6),
+        '418-10':(60, 17), '418-11':(68, 17),
+        '420':   (72, 33), '421':   (72, 46), '422':   (72, 60),
+        '422-1': (58, 63), '422-2': (65, 63),
+        '422-3': (65, 56), '422-4': (58, 56),
+    }
     rooms = Room.objects.filter(is_active=True).order_by('code')
-    for i, r in enumerate(rooms):
-        r.mapX = 15 + (i * 16)
-        r.mapY = 45
-    for room in rooms:
+    for i, room in enumerate(rooms):
+        pos = ROOM_POSITIONS.get(room.code, (10 + (i % 10)*8, 20 + (i//10)*20))
+        room.mapX = pos[0]
+        room.mapY = pos[1]
         room.thumb = get_room_thumb(room)
-        room.inroom = get_room_inroom(room)
+        imgs = get_room_images(room)
+        room.inroom = imgs[0] if imgs else ''
     return render(request, 'rooms/floor_map.html', {'rooms': rooms})
 
 
@@ -468,37 +513,74 @@ def ai_booking(request):
         today = timezone.localdate().isoformat()
 
         try:
-            resp = requests.post(
-                f"{settings.AI_API_BASE.rstrip('/')}/chat/completions",
-                headers={'Authorization': f'Bearer {settings.AI_API_KEY}', 'Content-Type': 'application/json'},
-                json={
-                    'model': settings.AI_MODEL,
-                    'messages': [
-                        {'role': 'system', 'content': (
-                            'You convert Thai room booking requests to JSON for a university room booking system. '
-                            'Return only JSON. Required keys: roomId, roomCode, date, start, end, attendees, purpose, reply. '
-                            'Use roomId from the provided rooms list. If the user names a room code, map it to the matching id. '
-                            'Use today from the user JSON as the current date. Dates must be YYYY-MM-DD. '
-                            'Interpret Thai time carefully: บ่าย 2 = 14:00, บ่าย 3 = 15:00, บ่าย 4 = 16:00, เช้า 9 = 09:00. '
-                            'For ranges like บ่าย 2-4 โมง, start is 14:00 and end is 16:00. '
-                            'If information is missing, still return JSON and explain the missing field in reply.'
-                        )},
-                        {'role': 'user', 'content': json.dumps({'today': today, 'rooms': rooms, 'request': message}, ensure_ascii=False)},
-                    ],
-                    'temperature': 0.2, 'response_format': {'type': 'json_object'},
-                },
-                timeout=30,
+            api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.AI_MODEL}:generateContent?key={settings.AI_API_KEY}"
+            
+            # Build current bookings summary for AI context
+            from datetime import date as _date
+            today_date = timezone.localdate()
+            upcoming_bookings = Booking.objects.filter(
+                start_date__gte=today_date,
+                status__in=['APPROVED', 'PENDING']
+            ).select_related('room').order_by('start_date', 'start_time')[:50]
+            bookings_context = [
+                {
+                    'room_code': b.room.code, 'room_name': b.room.name,
+                    'date': b.start_date.isoformat(),
+                    'start': b.start_time.strftime('%H:%M'), 'end': b.end_time.strftime('%H:%M'),
+                    'status': b.get_status_display(),
+                }
+                for b in upcoming_bookings
+            ]
+
+            system_instruction = (
+                'You are an AI assistant for a Thai university room booking system (ECE Thammasat). '
+                'You can answer questions about available rooms, room details, and help create bookings. '
+                'For BOOKING REQUESTS: Return JSON with keys: roomId, roomCode, date, start, end, attendees, purpose, reply. '
+                'IMPORTANT: "purpose" (วัตถุประสงค์) is REQUIRED. If the user has not stated the purpose of use, ask them for it before confirming — do NOT proceed without it. '
+                'Use roomId from the provided rooms list. Dates: YYYY-MM-DD. '
+                'Thai time: บ่าย 2 = 14:00, บ่าย 3 = 15:00, เช้า 9 = 09:00, บ่าย 2-4 โมง → start=14:00 end=16:00. '
+                'For INFORMATION QUESTIONS (e.g. "ห้องว่างวันพรุ่งนี้ไหม", "ห้องไหนว่าง", room capacity questions): '
+                'Answer in Thai using the bookings_context provided. Return JSON with only "reply" key (no booking fields). '
+                'If information is missing for a booking, ask in reply and return partial JSON.'
             )
-            resp.raise_for_status()
-            parsed = _extract_json_object(resp.json()['choices'][0]['message']['content'])
+            
+            user_content = json.dumps({
+                'today': today, 'rooms': rooms, 'request': message,
+                'bookings_context': bookings_context
+            }, ensure_ascii=False)
+            
+            payload = {
+                "contents": [{
+                    "parts": [{"text": f"System: {system_instruction}\n\nUser: {user_content}"}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.2,
+                    "response_mime_type": "application/json", # บังคับตอบเป็น JSON
+                }
+            }
+
+            resp = requests.post(api_url, headers={'Content-Type': 'application/json'}, json=payload, timeout=30)
+            
+            if resp.status_code != 200:
+                try:
+                    err_detail = resp.json()
+                    error_msg = f"AI Error ({resp.status_code}): {err_detail.get('error', {}).get('message', resp.text)}"
+                except:
+                    error_msg = f"AI Error ({resp.status_code}): {resp.text}"
+                return JsonResponse({'error': error_msg}, status=resp.status_code)
+
+            # การดึงข้อมูลจาก Native API จะใช้โครงสร้างนี้ครับ
+            ai_text = resp.json()['candidates'][0]['content']['parts'][0]['text']
+            parsed = _extract_json_object(ai_text)
             parsed = _validate_ai_booking(parsed)
             return JsonResponse({'message': parsed.get('reply', 'AI เตรียมข้อมูลให้แล้ว'), 'parsed': parsed})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=502)
 
     suggestions = [
-        'จองห้อง 406-3 พรุ่งนี้บ่าย 2-4 โมง สำหรับ 15 คน',
-        'ขอห้องประชุมเล็กวันศุกร์เช้า workshop 6 คน',
+        'จองห้อง 406-3 พรุ่งนี้บ่าย 2-4 โมง สำหรับ 15 คน เพื่อประชุมงาน',
+        'ห้องไหนว่างวันพรุ่งนี้บ้าง?',
+        'ขอดูห้องประชุมที่ว่างช่วงเช้าวันศุกร์นี้',
     ]
     return render(request, 'bookings/ai_booking.html', {'suggestions': suggestions})
 
@@ -706,3 +788,5 @@ def set_user_role(request, user_id):
         user.save(update_fields=['role'])
         messages.success(request, f'เปลี่ยน Role ของ {user.username} สำเร็จ')
     return redirect('admin_users')
+
+

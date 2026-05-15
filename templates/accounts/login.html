@@ -47,7 +47,7 @@
 <div class="form-panel">
   <div class="form-card">
     <h2 class="form-title">เข้าสู่ระบบ</h2>
-    <p class="form-sub">เข้าสู่ระบบด้วยบัญชี <strong>TU NetID</strong> ของคุณ</p>
+    <p class="form-sub">เข้าสู่ระบบด้วยบัญชี <strong>TU Account</strong> ของคุณ</p>
 
     {% if form.errors or error %}
       <div class="alert-error">{{ error|default:"ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }}</div>
@@ -58,7 +58,7 @@
       <input type="hidden" name="next" value="{{ next }}">
 
       <div class="form-group">
-        <label class="form-label" for="username">TU NetID</label>
+        <label class="form-label" for="username">TU Account</label>
         <input class="form-input" type="text" id="username" name="username"
                placeholder="example.s" value="{{ request.POST.username }}" required autofocus>
       </div>
