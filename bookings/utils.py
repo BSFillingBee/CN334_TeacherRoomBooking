@@ -1,8 +1,13 @@
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
+
+def _get_booking_model():
+    from bookings.models import Booking
+    return Booking
 
 
 def _base_url():
@@ -106,6 +111,7 @@ def send_cancellation_notice_to_admin(booking):
 def send_reminder_emails():
     """ส่ง Email เตือนผู้จองล่วงหน้า 1 วันก่อนวันใช้งาน (ควร run ทุกวันตอนเช้า)"""
     from datetime import date, timedelta
+    Booking = _get_booking_model()
     tomorrow = date.today() + timedelta(days=1)
     bookings = Booking.objects.filter(
         status='APPROVED',

@@ -48,11 +48,11 @@ ROOM_THUMB = {
 }
 # Multiple images per room (list)
 ROOM_IMAGES = {
-    '406-3':   ['images/rooms/inroom406-3.jpg', 'images/rooms/406-3.jpg'],
-    '406-5':   ['images/rooms/inroom406-5.jpg', 'images/rooms/inroom406-5(1).jpg', 'images/rooms/406-5.jpg'],
-    '408-1':   ['images/rooms/408-1.jpg'],
-    '408-2/1': ['images/rooms/408-2_1.jpg', 'images/rooms/408-2_2.jpg'],
-    '408-2/2': ['images/rooms/408-2_2.jpg', 'images/rooms/408-2_1.jpg'],
+    '406-3':   ['images/rooms/406-3.jpg', 'images/rooms/inroom406-3(1).jpg', 'images/rooms/inroom406-3(2).jpg'],
+    '406-5':   ['images/rooms/406-5.jpg', 'images/rooms/inroom406-5(1).jpg'],
+    '408-1':   ['images/rooms/408-1.jpg', 'images/rooms/inroom408-1(1).jpg'],
+    '408-2/1': ['images/rooms/408-2_1.jpg', 'images/rooms/inroom408-2_1(1).jpg'],
+    '408-2/2': ['images/rooms/408-2_2.jpg', 'images/rooms/inroom408-2_2(1).jpg', 'images/rooms/inroom408-2_2(2).jpg'],
 }
 # Equipment per room
 ROOM_EQUIPMENT = {
