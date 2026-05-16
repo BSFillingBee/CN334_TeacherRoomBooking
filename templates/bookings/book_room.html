@@ -221,6 +221,7 @@ function selectPurpose(type) {
   document.getElementById('trainingFields').style.display = type === 'TRAINING' ? '' : 'none';
 }
 
+
 // Update summary
 document.querySelectorAll('input[name="startDate"],input[name="endDate"],select[name="startTime"],select[name="endTime"]').forEach(el => {
   el.addEventListener('change', updateSummary);
@@ -235,6 +236,7 @@ function updateSummary() {
 }
 updateSummary();
 
+
 // Init selected room
 {% if selected_room_id %}
 const initRoom = roomData.find(r => String(r.id) === '{{ selected_room_id }}');
@@ -242,3 +244,4 @@ if (initRoom) document.getElementById('summaryRoom').textContent = initRoom.code
 {% endif %}
 </script>
 {% endblock %}
+
