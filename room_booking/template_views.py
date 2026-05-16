@@ -561,18 +561,35 @@ def ai_booking(request):
                 'Thai time: บ่าย 2 = 14:00, บ่าย 3 = 15:00, เช้า 9 = 09:00, บ่าย 2-4 โมง → start=14:00 end=16:00. '
                 'For INFORMATION QUESTIONS (e.g. "ห้องว่างวันพรุ่งนี้ไหม", "ห้องไหนว่าง", room capacity questions): '
                 'Answer in Thai using the bookings_context provided. Return JSON with only "reply" key (no booking fields). '
+                'CRITICAL: When asked about available rooms, you MUST list ALL available rooms comprehensively based on the provided rooms list and bookings_context. Do not give partial lists. '
                 'If information is missing for a booking, ask in reply and return partial JSON.'
             )
             
-            user_content = json.dumps({
-                'today': today, 'rooms': rooms, 'request': message,
-                'bookings_context': bookings_context
-            }, ensure_ascii=False)
+            history = data.get('history', [])
+            contents = []
             
+            system_context = f"System: {system_instruction}\n\nContext: Today is {today}\nRooms: {rooms}\nBookings: {bookings_context}\n\n"
+            
+            if not history:
+                contents.append({
+                    "role": "user",
+                    "parts": [{"text": system_context + f"User: {message}"}]
+                })
+            else:
+                first_msg = history[0]
+                first_text = first_msg['parts'][0]['text']
+                contents.append({
+                    "role": "user",
+                    "parts": [{"text": system_context + f"User: {first_text}"}]
+                })
+                contents.extend(history[1:])
+                contents.append({
+                    "role": "user",
+                    "parts": [{"text": f"User: {message}"}]
+                })
+
             payload = {
-                "contents": [{
-                    "parts": [{"text": f"System: {system_instruction}\n\nUser: {user_content}"}]
-                }],
+                "contents": contents,
                 "generationConfig": {
                     "temperature": 0.2,
                     "response_mime_type": "application/json", # บังคับตอบเป็น JSON
@@ -592,7 +609,13 @@ def ai_booking(request):
             # การดึงข้อมูลจาก Native API จะใช้โครงสร้างนี้ครับ
             ai_text = resp.json()['candidates'][0]['content']['parts'][0]['text']
             parsed = _extract_json_object(ai_text)
-            parsed = _validate_ai_booking(parsed)
+            
+            # ตรวจสอบว่าเป็นการพยายามจองห้องหรือไม่ (ถ้ามีข้อมูลห้องหรือวันที่ ถือว่าเป็นการจอง)
+            is_booking_request = any(k in parsed and parsed[k] for k in ('roomId', 'roomCode', 'room', 'date', 'start'))
+            
+            if is_booking_request:
+                parsed = _validate_ai_booking(parsed)
+                
             return JsonResponse({'message': parsed.get('reply', 'AI เตรียมข้อมูลให้แล้ว'), 'parsed': parsed})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=502)
