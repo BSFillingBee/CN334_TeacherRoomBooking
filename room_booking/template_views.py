@@ -464,12 +464,56 @@ def _extract_json_object(text):
     text = (text or '').strip()
     if text.startswith('```'):
         text = text.strip('`')
-        text = text.replace('json', '', 1).strip()
-    start = text.find('{')
-    end = text.rfind('}')
-    if start >= 0 and end >= start:
-        text = text[start:end + 1]
-    return json.loads(text)
+        if text.startswith('json'):
+            text = text[4:].strip()
+            
+    text = text.strip()
+    
+    # Try parsing the whole string first
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+        
+    decoder = json.JSONDecoder()
+    objects = []
+    idx = 0
+    while idx < len(text):
+        while idx < len(text) and text[idx].isspace():
+            idx += 1
+        if idx >= len(text):
+            break
+        try:
+            obj, end_idx = decoder.raw_decode(text[idx:])
+            objects.append(obj)
+            idx += end_idx
+        except json.JSONDecodeError:
+            next_brace = text.find('{', idx)
+            if next_brace == -1:
+                break
+            if next_brace == idx:
+                idx += 1
+            else:
+                idx = next_brace
+            
+    if not objects:
+        # Fallback to the old method
+        start = text.find('{')
+        end = text.rfind('}')
+        if start >= 0 and end >= start:
+            try:
+                return json.loads(text[start:end + 1])
+            except Exception:
+                pass
+        return {}
+        
+    # Merge all dictionaries found
+    merged = {}
+    for obj in objects:
+        if isinstance(obj, dict):
+            merged.update(obj)
+            
+    return merged
 
 
 def _resolve_room(value):
@@ -535,64 +579,117 @@ def ai_booking(request):
         try:
             api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.AI_MODEL}:generateContent?key={settings.AI_API_KEY}"
             
-            # Build current bookings summary for AI context
+            # Build per-room schedule context: expand recurring bookings into individual date occurrences
             from datetime import date as _date
             today_date = timezone.localdate()
+            # Look ahead 60 days
+            lookahead = today_date + timedelta(days=60)
             upcoming_bookings = Booking.objects.filter(
-                start_date__gte=today_date,
+                end_date__gte=today_date,
+                start_date__lte=lookahead,
                 status__in=['APPROVED', 'PENDING']
-            ).select_related('room').order_by('start_date', 'start_time')[:50]
-            bookings_context = [
-                {
-                    'room_code': b.room.code, 'room_name': b.room.name,
-                    'date': b.start_date.isoformat(),
-                    'start': b.start_time.strftime('%H:%M'), 'end': b.end_time.strftime('%H:%M'),
-                    'status': b.get_status_display(),
-                }
-                for b in upcoming_bookings
-            ]
+            ).select_related('room').order_by('start_date', 'start_time')
+            
+            # Build per-room dict of { date_str: [(start, end), ...] }
+            room_schedule = {}
+            for b in upcoming_bookings:
+                rcode = b.room.code
+                if rcode not in room_schedule:
+                    room_schedule[rcode] = {}
+                occurrence_dates = b.get_occurrence_dates()
+                for occ_date in occurrence_dates:
+                    if occ_date < today_date:
+                        continue
+                    d_str = occ_date.isoformat()
+                    room_schedule[rcode].setdefault(d_str, []).append(
+                        f"{b.start_time.strftime('%H:%M')}-{b.end_time.strftime('%H:%M')}"
+                    )
+
+            # Build readable context for AI
+            rooms_with_schedule = []
+            for r in Room.objects.filter(is_active=True).order_by('code'):
+                schedule = room_schedule.get(r.code, {})
+                rooms_with_schedule.append({
+                    'id': str(r.id), 'code': r.code, 'name': r.name,
+                    'capacity': r.capacity, 'type': r.room_type,
+                    'booked_slots': schedule  # { '2026-05-18': ['09:30-12:30', '14:00-16:00'], ... }
+                })
 
             system_instruction = (
-                'You are an AI assistant for a Thai university room booking system (ECE Thammasat). '
-                'You can answer questions about available rooms, room details, and help create bookings. '
-                'For BOOKING REQUESTS: Return JSON with keys: roomId, roomCode, date, start, end, attendees, purpose, reply. '
-                'IMPORTANT: "purpose" (วัตถุประสงค์) is REQUIRED. If the user has not stated the purpose of use, ask them for it before confirming — do NOT proceed without it. '
-                'Use roomId from the provided rooms list. Dates: YYYY-MM-DD. '
-                'Thai time: บ่าย 2 = 14:00, บ่าย 3 = 15:00, เช้า 9 = 09:00, บ่าย 2-4 โมง → start=14:00 end=16:00. '
-                'For INFORMATION QUESTIONS (e.g. "ห้องว่างวันพรุ่งนี้ไหม", "ห้องไหนว่าง", room capacity questions): '
-                'Answer in Thai using the bookings_context provided. Return JSON with only "reply" key (no booking fields). '
-                'CRITICAL: When asked about available rooms, you MUST list ALL available rooms comprehensively based on the provided rooms list and bookings_context. Do not give partial lists. '
-                'If information is missing for a booking, ask in reply and return partial JSON.'
+                "You are an AI assistant for ECE Thammasat's room booking system.\n"
+                "You help users check room availability and create bookings.\n"
+                "ALWAYS return a SINGLE JSON object.\n"
+                "CRITICAL: You MUST ALWAYS reply in Thai language in the 'reply' field. Never reply in English.\n"
+                "If the user wants to book, you MUST collect: roomId (or roomCode), date (YYYY-MM-DD), start time (HH:MM), end time (HH:MM), attendees, and purpose.\n"
+                "CRITICAL: A 'Current Booking State' JSON will be provided in the user prompt. You MUST carry over ALL fields from it into your JSON response exactly as they are, unless the user explicitly updates them. Do not drop any fields.\n"
+                "CRITICAL: You MUST extract and include EVERY piece of booking information the user mentions (roomId/roomCode, date, start, end, attendees, purpose) in the JSON immediately, even if the booking is not yet complete. Never leave a field empty if the user has provided it.\n"
+                "CRITICAL: If any required booking information is missing, ask the user ONLY for the specific information that is missing in the 'reply' field. Do NOT ask for information you already have.\n"
+                "CRITICAL: If you have gathered ALL required booking information (room, date, start, end), your 'reply' MUST instruct the user to click the confirmation button below to complete the booking (e.g., 'ข้อมูลครบถ้วนแล้ว กรุณากดปุ่ม ยืนยันการจอง ด้านล่างได้เลยครับ'). Do NOT ask them a yes/no question like 'ใช่หรือไม่'.\n"
+                "AVAILABILITY RULES:\n"
+                "- Each room has a 'booked_slots' dict: {date: [list of occupied time ranges]}.\n"
+                "- A room is FULLY AVAILABLE on a date if that date does not appear in booked_slots.\n"
+                "- A room is PARTIALLY AVAILABLE if the date appears but the user's requested time does NOT overlap any booked slot.\n"
+                "  Two time ranges overlap if: request_start < booked_end AND request_end > booked_start.\n"
+                "- A room is UNAVAILABLE for the user's specific time if their requested window overlaps with a booked slot.\n"
+                "WHEN ASKED ABOUT ROOM AVAILABILITY:\n"
+                "- ALWAYS list ALL rooms from the Rooms list in your reply.\n"
+                "- For each room, state whether it is: (a) ว่างทั้งวัน (fully free), (b) ว่างบางช่วงเวลา + list occupied slots (partially booked), or (c) ไม่ว่าง for the specific requested time.\n"
+                "- If the user asks about a specific time, check overlaps precisely and tell them which rooms are free at that time.\n"
+                "- NEVER say a room is 'ไม่ว่าง' (unavailable) for the whole day if it only has partial bookings — always clarify the occupied time slots so the user can book other time slots.\n"
+                "Thai time hints: บ่าย 2 = 14:00, เช้า 9 = 09:00, บ่าย 2-4 โมง = start 14:00 end 16:00, เช้า = 08:00-12:00, บ่าย = 13:00-17:00.\n\n"
+                f"=== SYSTEM CONTEXT ===\n"
+                f"Today is {today}\n"
+                f"Rooms (with booked_slots per date): {json.dumps(rooms_with_schedule, ensure_ascii=False)}\n"
+                "====================\n"
             )
             
             history = data.get('history', [])
             contents = []
             
-            system_context = f"System: {system_instruction}\n\nContext: Today is {today}\nRooms: {rooms}\nBookings: {bookings_context}\n\n"
-            
-            if not history:
-                contents.append({
-                    "role": "user",
-                    "parts": [{"text": system_context + f"User: {message}"}]
-                })
-            else:
-                first_msg = history[0]
-                first_text = first_msg['parts'][0]['text']
-                contents.append({
-                    "role": "user",
-                    "parts": [{"text": system_context + f"User: {first_text}"}]
-                })
-                contents.extend(history[1:])
-                contents.append({
-                    "role": "user",
-                    "parts": [{"text": f"User: {message}"}]
-                })
+            # Build current accumulated state from history
+            current_state = {}
+            for msg in history:
+                if msg.get('role') == 'model':
+                    try:
+                        parsed_msg = _extract_json_object(msg['parts'][0]['text'])
+                        for k, v in parsed_msg.items():
+                            if k != 'reply' and v:
+                                current_state[k] = v
+                    except Exception:
+                        pass
+
+            # Copy conversation history verbatim
+            for msg in history:
+                contents.append(msg)
+                
+            # Append the current user message with the current state
+            contents.append({
+                "role": "user",
+                "parts": [{"text": f"Current Booking State: {json.dumps(current_state)}\n\nUser: {message}"}]
+            })
 
             payload = {
+                "systemInstruction": {
+                    "parts": [{"text": system_instruction}]
+                },
                 "contents": contents,
                 "generationConfig": {
                     "temperature": 0.2,
-                    "response_mime_type": "application/json", # บังคับตอบเป็น JSON
+                    "response_mime_type": "application/json",
+                    "response_schema": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "roomId": {"type": "STRING", "description": "ID of the room. Empty string if unknown."},
+                            "roomCode": {"type": "STRING", "description": "Code of the room. Empty string if unknown."},
+                            "date": {"type": "STRING", "description": "Date in YYYY-MM-DD. Empty string if unknown."},
+                            "start": {"type": "STRING", "description": "Start time in HH:MM. Empty string if unknown."},
+                            "end": {"type": "STRING", "description": "End time in HH:MM. Empty string if unknown."},
+                            "attendees": {"type": "STRING", "description": "Number of attendees. Empty string if unknown."},
+                            "purpose": {"type": "STRING", "description": "Purpose of booking. Empty string if unknown."},
+                            "reply": {"type": "STRING", "description": "Your response to the user in Thai"}
+                        },
+                        "required": ["roomId", "roomCode", "date", "start", "end", "attendees", "purpose", "reply"]
+                    }
                 }
             }
 
@@ -610,8 +707,14 @@ def ai_booking(request):
             ai_text = resp.json()['candidates'][0]['content']['parts'][0]['text']
             parsed = _extract_json_object(ai_text)
             
-            # ตรวจสอบว่าเป็นการพยายามจองห้องหรือไม่ (ถ้ามีข้อมูลห้องหรือวันที่ ถือว่าเป็นการจอง)
-            is_booking_request = any(k in parsed and parsed[k] for k in ('roomId', 'roomCode', 'room', 'date', 'start'))
+            # Merge current state back into parsed if AI dropped any fields
+            for k, v in current_state.items():
+                if k not in parsed or not parsed[k]:
+                    parsed[k] = v
+            
+            # ตรวจสอบว่าเป็นการพยายามจองห้องหรือไม่ (ถ้ามีข้อมูลครบถ้วนถือว่าเป็นการจอง)
+            has_room = any(k in parsed and parsed[k] for k in ('roomId', 'roomCode', 'room'))
+            is_booking_request = has_room and parsed.get('date') and parsed.get('start') and parsed.get('end')
             
             if is_booking_request:
                 parsed = _validate_ai_booking(parsed)
@@ -656,6 +759,148 @@ def ai_confirm_booking(request):
     except Exception as e:
         messages.error(request, str(e))
     return redirect('my_bookings')
+
+
+# ─── Admin AI ─────────────────────────────────────────────────────────────────
+
+@login_required
+def admin_ai_page(request):
+    """Render the dedicated Admin AI chat page."""
+    if not request.user.is_admin:
+        messages.error(request, 'ไม่มีสิทธิ์เข้าถึงหน้านี้')
+        return redirect('dashboard')
+    return render(request, 'admin_panel/ai_chat.html')
+
+
+@login_required
+def admin_ai_chat(request):
+    """AI chat API endpoint for admin: list pending bookings and bulk approve."""
+    if not request.user.is_admin:
+        return JsonResponse({'error': 'ไม่มีสิทธิ์'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        data = request.POST.dict()
+
+    message = (data.get('message') or '').strip()
+    if not message:
+        return JsonResponse({'error': 'กรุณาพิมพ์คำสั่ง'}, status=400)
+
+    if not settings.AI_API_KEY:
+        return JsonResponse({'error': 'ยังไม่ได้ตั้งค่า AI_API_KEY'}, status=503)
+
+    # Build pending bookings context for admin
+    pending_bookings = Booking.objects.filter(status='PENDING').select_related('room', 'requester').order_by('-created_at')
+    pending_context = [
+        {
+            'id': str(b.id),
+            'room_code': b.room.code, 'room_name': b.room.name,
+            'requester': b.requester.get_full_name() or b.requester.username,
+            'email': b.requester.email,
+            'purpose': b.course_name if b.purpose_type == 'TEACHING' else b.topic,
+            'purpose_type': b.get_purpose_type_display(),
+            'dates': b.occurrence_dates_display,
+            'time': f"{b.start_time.strftime('%H:%M')}-{b.end_time.strftime('%H:%M')}",
+            'status': 'รออนุมัติ',
+        }
+        for b in pending_bookings
+    ]
+
+    today = timezone.localdate().isoformat()
+    try:
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.AI_MODEL}:generateContent?key={settings.AI_API_KEY}"
+        system_instruction = (
+            "You are an AI assistant for an admin in ECE Thammasat's room booking system.\n"
+            "ALWAYS return a SINGLE JSON object with fields: 'reply' (Thai string) and 'action' (string, one of: 'none', 'approve_all', 'approve_ids').\n"
+            "If action is 'approve_ids', also include 'ids': list of booking ID strings to approve.\n"
+            "CRITICAL: Always reply in Thai language in the 'reply' field.\n"
+            "You can help admin:\n"
+            "1. List all pending bookings with details.\n"
+            "2. Approve all pending bookings (set action='approve_all').\n"
+            "3. Approve specific bookings by ID (set action='approve_ids', ids=[...]).\n"
+            "4. Provide summary statistics.\n"
+            "When listing bookings, format them clearly showing ID, room, requester, purpose, dates, and time.\n"
+            "If admin says to approve all, set action='approve_all'.\n"
+            "If admin says to approve specific ones (by name, room, or ID), set action='approve_ids' with the matching IDs.\n"
+            f"=== ADMIN CONTEXT ===\n"
+            f"Today is {today}\n"
+            f"Pending Bookings ({len(pending_context)} total): {json.dumps(pending_context, ensure_ascii=False)}\n"
+            "===================\n"
+        )
+
+        history = data.get('history', [])
+        contents = list(history)
+        contents.append({"role": "user", "parts": [{"text": message}]})
+
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_instruction}]},
+            "contents": contents,
+            "generationConfig": {
+                "temperature": 0.1,
+                "response_mime_type": "application/json",
+                "response_schema": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "reply": {"type": "STRING"},
+                        "action": {"type": "STRING"},
+                        "ids": {"type": "ARRAY", "items": {"type": "STRING"}},
+                    },
+                    "required": ["reply", "action"]
+                }
+            }
+        }
+
+        resp = requests.post(api_url, headers={'Content-Type': 'application/json'}, json=payload, timeout=30)
+        if resp.status_code != 200:
+            try:
+                err_detail = resp.json()
+                error_msg = f"AI Error ({resp.status_code}): {err_detail.get('error', {}).get('message', resp.text)}"
+            except Exception:
+                error_msg = f"AI Error ({resp.status_code}): {resp.text}"
+            return JsonResponse({'error': error_msg}, status=resp.status_code)
+
+        ai_text = resp.json()['candidates'][0]['content']['parts'][0]['text']
+        parsed = _extract_json_object(ai_text)
+        action = parsed.get('action', 'none')
+        approved_count = 0
+
+        if action == 'approve_all':
+            approved_count = pending_bookings.count()
+            for b in pending_bookings:
+                b.status = 'APPROVED'
+                b.save(update_fields=['status', 'updated_at'])
+                try:
+                    send_booking_status_update(b)
+                except Exception:
+                    pass
+        elif action == 'approve_ids':
+            ids_to_approve = [str(i) for i in (parsed.get('ids') or [])]
+            for bid in ids_to_approve:
+                try:
+                    b = Booking.objects.get(pk=int(bid), status='PENDING')
+                    b.status = 'APPROVED'
+                    b.save(update_fields=['status', 'updated_at'])
+                    approved_count += 1
+                    try:
+                        send_booking_status_update(b)
+                    except Exception:
+                        pass
+                except Booking.DoesNotExist:
+                    pass
+
+        return JsonResponse({
+            'message': parsed.get('reply', 'เสร็จสิ้น'),
+            'action': action,
+            'approved_count': approved_count,
+            'pending_count': Booking.objects.filter(status='PENDING').count(),
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=502)
+
 
 
 # ─── Admin ─────────────────────────────────────────────────────────────────────

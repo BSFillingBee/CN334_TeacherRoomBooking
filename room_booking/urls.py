@@ -35,6 +35,8 @@ urlpatterns = [
     path('admin-panel/reports/csv/', v.reports_csv, name='reports_csv'),
     path('admin-panel/users/', v.admin_users, name='admin_users'),
     path('admin-panel/users/<int:user_id>/role/', v.set_user_role, name='set_user_role'),
+    path('admin-panel/ai/', v.admin_ai_page, name='admin_ai_page'),
+    path('admin-panel/ai/chat/', v.admin_ai_chat, name='admin_ai_chat'),
 ]
 
 if settings.DEBUG:
