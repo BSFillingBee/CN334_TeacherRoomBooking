@@ -7,6 +7,8 @@ import requests
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
+from django.db import models
+from django.db.models import Q
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
@@ -14,7 +16,7 @@ from django.views.decorators.http import require_POST
 
 from bookings.models import Booking
 from bookings.utils import send_booking_notification_to_admin, send_booking_status_update, send_cancellation_notice_to_admin
-from rooms.models import Room
+from rooms.models import Room, BlackoutPeriod
 from django.conf import settings
 
 User = get_user_model()
@@ -64,10 +66,33 @@ ROOM_EQUIPMENT = {
 }
 
 def get_room_thumb(room):
-    return ROOM_THUMB.get(room.code, '')
+    if room.code in ROOM_THUMB:
+        return ROOM_THUMB[room.code]
+    if room.image:
+        import json
+        try:
+            imgs = json.loads(room.image)
+            if imgs:
+                ROOM_IMAGES[room.code] = imgs
+                ROOM_THUMB[room.code] = imgs[0]
+                return imgs[0]
+        except (json.JSONDecodeError, TypeError):
+            ROOM_THUMB[room.code] = room.image
+            return room.image
+    return ''
 
 def get_room_images(room):
-    return ROOM_IMAGES.get(room.code, [])
+    if room.code in ROOM_IMAGES:
+        return ROOM_IMAGES[room.code]
+    if room.image:
+        import json
+        try:
+            imgs = json.loads(room.image)
+            ROOM_IMAGES[room.code] = imgs
+            return imgs
+        except (json.JSONDecodeError, TypeError):
+            return [room.image]
+    return []
 
 def get_room_equipment(room):
     return ROOM_EQUIPMENT.get(room.code, [])
@@ -197,6 +222,15 @@ def book_room(request):
             check = start_date
             while check <= end_date:
                 if str(check.weekday()) in days_of_week.split(','):
+                    # Blackout Period check
+                    blackout = BlackoutPeriod.objects.filter(
+                        start_date__lte=check, end_date__gte=check,
+                    ).filter(
+                        Q(room=room) | Q(room__isnull=True)
+                    ).first()
+                    if blackout:
+                        raise ValueError(f'ห้องนี้ไม่พร้อมใช้งานในช่วงวันที่ {check} เนื่องจาก: {blackout.title}')
+
                     conflicts = Booking.objects.filter(
                         room=room, status__in=['APPROVED', 'PENDING'],
                         start_date__lte=check, end_date__gte=check,
@@ -249,7 +283,7 @@ def book_room(request):
         'selected_room_id': request.GET.get('roomId', selected_room_id),
         'selected_days': selected_days,
         'selected_days_json': json.dumps(selected_days),
-        'form_data': request.GET,
+        'form_data': {},
     })
 
 
@@ -303,23 +337,19 @@ def calendar_view(request):
         current = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
     except ValueError:
         current = date.today().replace(day=1)
-
     # Build calendar days
     first_day = current
     last_day = (current.replace(month=current.month % 12 + 1, day=1) if current.month < 12
                 else current.replace(year=current.year + 1, month=1, day=1)) - timedelta(days=1)
-
     # Start from Sunday of first week
     start = first_day - timedelta(days=(first_day.weekday() + 1) % 7)
     end = last_day + timedelta(days=(6 - (last_day.weekday() + 1) % 7))
-
     bookings_qs = Booking.objects.filter(
         start_date__lte=end, end_date__gte=start,
         status__in=['APPROVED', 'PENDING']
     ).select_related('room', 'requester')
     if room_filter:
         bookings_qs = bookings_qs.filter(room_id=room_filter)
-
     # Build bookings by date
     bookings_by_date = {}
     b = start
@@ -331,11 +361,31 @@ def calendar_view(request):
         if day_bks:
             bookings_by_date[b.isoformat()] = day_bks
         b += timedelta(days=1)
-
+    
+    # Get BlackoutPeriods
+    blackouts_qs = BlackoutPeriod.objects.filter(
+        start_date__lte=end, end_date__gte=start
+    )
+    if room_filter:
+        blackouts_qs = blackouts_qs.filter(Q(room_id=room_filter) | Q(room__isnull=True))
+    
+    # Build blackouts by date
+    blackouts_by_date = {}
+    b = start
+    while b <= end:
+        day_blackouts = []
+        for bp in blackouts_qs:
+            if bp.start_date <= b <= bp.end_date:
+                day_blackouts.append(bp)
+        if day_blackouts:
+            blackouts_by_date[b.isoformat()] = day_blackouts
+        b += timedelta(days=1)
+    
     calendar_days = []
     d = start
     while d <= end:
         bks = bookings_by_date.get(d.isoformat(), [])
+        bps = blackouts_by_date.get(d.isoformat(), [])
         calendar_days.append({
             'date': d.isoformat(),
             'day': d.day,
@@ -343,9 +393,9 @@ def calendar_view(request):
             'is_today': d == date.today(),
             'bookings': [{'start_time': bk.start_time.strftime('%H:%M'), 'room_code': bk.room.code, 'status': bk.status.lower()} for bk in bks[:2]],
             'more': max(0, len(bks) - 2),
+            'blackouts': [{'title': bp.title, 'note': bp.note} for bp in bps],
         })
         d += timedelta(days=1)
-
     # All bookings JSON for JS
     all_bookings = []
     for bk in bookings_qs:
@@ -364,23 +414,36 @@ def calendar_view(request):
                     'status': bk.status.lower(),
                 })
             d += timedelta(days=1)
-
+    
+    # All blackouts JSON for JS
+    all_blackouts = []
+    for bp in blackouts_qs:
+        d = bp.start_date
+        while d <= bp.end_date:
+            all_blackouts.append({
+                'date': d.isoformat(),
+                'title': bp.title,
+                'note': bp.note,
+                'room_id': bp.room_id,
+                'room_code': bp.room.code if bp.room else 'ทุกห้อง',
+            })
+            d += timedelta(days=1)
+    
     prev_month = (current - timedelta(days=1)).strftime('%Y-%m')
     next_month = (last_day + timedelta(days=1)).strftime('%Y-%m')
-
     all_rooms = Room.objects.filter(is_active=True).order_by('code')
     return render(request, 'calendar/calendar.html', {
         'calendar_days': calendar_days,
         'month_label': f'{THAI_MONTHS[current.month - 1]} {current.year + 543}',
         'day_headers': ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'],
         'bookings_json': json.dumps(all_bookings, ensure_ascii=False),
+        'blackouts_json': json.dumps(all_blackouts, ensure_ascii=False),
         'prev_month': prev_month,
         'next_month': next_month,
         'today_month': date.today().strftime('%Y-%m'),
         'all_rooms': all_rooms,
         'room_filter': room_filter,
     })
-
 
 # ─── Rooms ─────────────────────────────────────────────────────────────────────
 
@@ -559,6 +622,13 @@ def _validate_ai_booking(parsed):
     for booking in conflicts:
         if str(booking_date.weekday()) in booking.get_days_list():
             raise ValueError(f'ห้อง {room.code} มีการจองในช่วงเวลานี้แล้ว')
+
+    # Blackout Period check for AI booking
+    ai_blackout = BlackoutPeriod.objects.filter(
+        start_date__lte=booking_date, end_date__gte=booking_date,
+    ).filter(Q(room=room) | Q(room__isnull=True)).first()
+    if ai_blackout:
+        raise ValueError(f'ห้อง {room.code} ไม่พร้อมใช้งานในวันที่ {booking_date} เนื่องจาก: {ai_blackout.title}')
 
     parsed['roomId'] = str(room.id)
     parsed['roomCode'] = room.code
@@ -968,7 +1038,11 @@ def review_booking(request, pk):
 
 @admin_required
 def admin_rooms(request):
+    import json
     rooms = Room.objects.all().order_by('code')
+    for room in rooms:
+        room.equipment = ','.join(ROOM_EQUIPMENT.get(room.code, []))
+        room.images_json = json.dumps(get_room_images(room))
     return render(request, 'admin_panel/rooms.html', {'rooms': rooms})
 
 
@@ -977,12 +1051,15 @@ def admin_rooms(request):
 def add_room(request):
     code = request.POST.get('code', '').strip()
     name = request.POST.get('name', '').strip()
+    equipment = request.POST.get('equipment', '').strip()
     if code and name:
-        Room.objects.get_or_create(code=code, defaults={
+        room, created = Room.objects.get_or_create(code=code, defaults={
             'name': name,
             'room_type': request.POST.get('roomType', 'MEETING'),
             'capacity': int(request.POST.get('capacity', 10)),
         })
+        if created and equipment:
+            ROOM_EQUIPMENT[code] = [e.strip() for e in equipment.split(',') if e.strip()]
         messages.success(request, f'เพิ่มห้อง {code} สำเร็จ')
     return redirect('admin_rooms')
 
@@ -994,13 +1071,71 @@ def edit_room(request, pk):
     name = request.POST.get('name', '').strip()
     capacity = request.POST.get('capacity', '').strip()
     room_type = request.POST.get('roomType', room.room_type)
+    equipment = request.POST.get('equipment', '').strip()
     if name:
         room.name = name
     if capacity.isdigit():
         room.capacity = int(capacity)
     room.room_type = room_type
     room.save()
+    if equipment:
+        ROOM_EQUIPMENT[room.code] = [e.strip() for e in equipment.split(',') if e.strip()]
     messages.success(request, f'แก้ไขห้อง {room.code} สำเร็จ')
+    return redirect('admin_rooms')
+
+
+@admin_required
+@require_POST
+def delete_room(request, pk):
+    room = get_object_or_404(Room, pk=pk)
+    code = room.code
+    room.delete()
+    ROOM_THUMB.pop(code, None)
+    ROOM_IMAGES.pop(code, None)
+    ROOM_EQUIPMENT.pop(code, None)
+    messages.success(request, f'ลบห้อง {code} สำเร็จ')
+    return redirect('admin_rooms')
+
+
+@admin_required
+@require_POST
+def upload_room_image(request, pk):
+    import os, json
+    room = get_object_or_404(Room, pk=pk)
+    imgs = request.FILES.getlist('images')
+    if imgs:
+        existing = ROOM_IMAGES.get(room.code, [])
+        new_paths = []
+        for img in imgs:
+            ext = os.path.splitext(img.name)[1].lower()
+            import uuid
+            filename = f'rooms/room_{room.code.replace("/", "_")}_{uuid.uuid4().hex[:6]}{ext}'
+            from django.core.files.storage import default_storage
+            saved_path = default_storage.save(f'images/{filename}', img)
+            new_paths.append(f'/media/{saved_path}')
+        all_paths = existing + new_paths
+        ROOM_THUMB[room.code] = all_paths[0]
+        ROOM_IMAGES[room.code] = all_paths
+        room.image = json.dumps(all_paths)
+        room.save(update_fields=['image'])
+        messages.success(request, f'อัปโหลด {len(imgs)} รูปสำหรับห้อง {room.code} สำเร็จ')
+    return redirect('admin_rooms')
+
+
+@admin_required
+@require_POST
+def delete_room_image(request, pk):
+    import json
+    room = get_object_or_404(Room, pk=pk)
+    idx = int(request.POST.get('image_index', -1))
+    images = ROOM_IMAGES.get(room.code, [])
+    if 0 <= idx < len(images):
+        images.pop(idx)
+        ROOM_IMAGES[room.code] = images
+        ROOM_THUMB[room.code] = images[0] if images else ''
+        room.image = json.dumps(images) if images else None
+        room.save(update_fields=['image'])
+        messages.success(request, f'ลบรูปสำเร็จ')
     return redirect('admin_rooms')
 
 
@@ -1043,11 +1178,41 @@ def admin_reports(request):
     for r in by_room:
         r['bar_width'] = round(r['count'] / max_count * 100) if max_count > 0 else 0
 
-    by_type = {'TEACHING': approved.filter(purpose_type='TEACHING').count(), 'TRAINING': approved.filter(purpose_type='TRAINING').count()}
-    by_program = {}
+    teaching_count = approved.filter(purpose_type='TEACHING').count()
+    training_count = approved.filter(purpose_type='TRAINING').count()
+    total_type = teaching_count + training_count
+    by_type = {
+        'TEACHING': teaching_count,
+        'TRAINING': training_count,
+        'TEACHING_PCT': round(teaching_count / total_type * 100) if total_type else 0,
+        'TRAINING_PCT': round(training_count / total_type * 100) if total_type else 0,
+    }
+
+    # FR-RPT-04: by_program with detail for chart
+    PROGRAM_LABELS = {
+        'ปริญญาตรีภาคปกติ': {'short': 'ป.ตรีปกติ', 'color': '#534AB7'},
+        'ปริญญาโท':         {'short': 'ป.โท',      'color': '#1D9E75'},
+        'TEP-TEPE':          {'short': 'TEP-TEPE',  'color': '#D85A30'},
+        'TU-PINE':           {'short': 'TU-PINE',   'color': '#D4537E'},
+        'ไม่ระบุ':           {'short': 'ไม่ระบุ',   'color': '#888780'},
+    }
+    by_program_raw = {}
     for b in approved.filter(purpose_type='TEACHING'):
         prog = b.get_program_display() if b.program else 'ไม่ระบุ'
-        by_program[prog] = by_program.get(prog, 0) + 1
+        by_program_raw[prog] = by_program_raw.get(prog, 0) + 1
+
+    max_prog = max(by_program_raw.values(), default=1)
+    by_program = []
+    for prog, cnt in sorted(by_program_raw.items(), key=lambda x: -x[1]):
+        meta = PROGRAM_LABELS.get(prog, {'short': prog, 'color': '#888780'})
+        by_program.append({
+            'label': prog,
+            'short': meta['short'],
+            'color': meta['color'],
+            'count': cnt,
+            'bar_width': round(cnt / max_prog * 100),
+            'pct': round(cnt / teaching_count * 100) if teaching_count else 0,
+        })
 
     total_hours = sum(r['hours'] for r in by_room)
     avg_util = round(sum(r['utilization'] for r in by_room) / len(by_room), 1) if by_room else 0
@@ -1089,3 +1254,73 @@ def set_user_role(request, user_id):
         user.save(update_fields=['role'])
         messages.success(request, f'เปลี่ยน Role ของ {user.username} สำเร็จ')
     return redirect('admin_users')
+
+# ─── Blackout Period (FR-ADM-03) ──────────────────────────────────────────────
+
+@admin_required
+def admin_blackout(request):
+    blackouts = BlackoutPeriod.objects.select_related('room').order_by('-start_date')
+    rooms = Room.objects.filter(is_active=True).order_by('code')
+    return render(request, 'admin_panel/blackout.html', {
+        'blackouts': blackouts,
+        'rooms': rooms,
+    })
+
+
+@admin_required
+@require_POST
+def add_blackout(request):
+    title = request.POST.get('title', '').strip()
+    start_str = request.POST.get('start_date', '')
+    end_str = request.POST.get('end_date', '')
+    room_id = request.POST.get('room_id', '')
+    note = request.POST.get('note', '').strip()
+    try:
+        start = datetime.strptime(start_str, '%Y-%m-%d').date()
+        end = datetime.strptime(end_str, '%Y-%m-%d').date()
+        if end < start:
+            messages.error(request, 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น')
+            return redirect('admin_blackout')
+        room = Room.objects.get(pk=room_id) if room_id else None
+        BlackoutPeriod.objects.create(title=title, start_date=start, end_date=end, room=room, note=note)
+        messages.success(request, f'เพิ่มช่วงเวลาปิด "{title}" สำเร็จ')
+    except Exception as e:
+        messages.error(request, f'เกิดข้อผิดพลาด: {e}')
+    return redirect('admin_blackout')
+
+
+@admin_required
+@require_POST
+def delete_blackout(request, pk):
+    bp = get_object_or_404(BlackoutPeriod, pk=pk)
+    title = bp.title
+    bp.delete()
+    messages.success(request, f'ลบช่วงเวลาปิด "{title}" สำเร็จ')
+    return redirect('admin_blackout')
+
+
+@admin_required
+@require_POST
+def edit_blackout(request, pk):
+    bp = get_object_or_404(BlackoutPeriod, pk=pk)
+    title = request.POST.get('title', '').strip()
+    start_str = request.POST.get('start_date', '')
+    end_str = request.POST.get('end_date', '')
+    room_id = request.POST.get('room_id', '')
+    note = request.POST.get('note', '').strip()
+    try:
+        start = datetime.strptime(start_str, '%Y-%m-%d').date()
+        end = datetime.strptime(end_str, '%Y-%m-%d').date()
+        if end < start:
+            messages.error(request, 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น')
+            return redirect('admin_blackout')
+        bp.title = title
+        bp.start_date = start
+        bp.end_date = end
+        bp.room = Room.objects.get(pk=room_id) if room_id else None
+        bp.note = note
+        bp.save()
+        messages.success(request, f'แก้ไขช่วงเวลาปิด "{title}" สำเร็จ')
+    except Exception as e:
+        messages.error(request, f'เกิดข้อผิดพลาด: {e}')
+    return redirect('admin_blackout')

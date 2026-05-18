@@ -31,12 +31,21 @@ urlpatterns = [
     path('admin-panel/rooms/add/', v.add_room, name='add_room'),
     path('admin-panel/rooms/<int:pk>/toggle/', v.toggle_room, name='toggle_room'),
     path('admin-panel/rooms/<int:pk>/edit/', v.edit_room, name='edit_room'),
+    path('admin-panel/rooms/<int:pk>/delete/', v.delete_room, name='delete_room'),
+    path('admin-panel/rooms/<int:pk>/image/', v.upload_room_image, name='upload_room_image'),
+    path('admin-panel/rooms/<int:pk>/image/delete/', v.delete_room_image, name='delete_room_image'),
     path('admin-panel/reports/', v.admin_reports, name='admin_reports'),
     path('admin-panel/reports/csv/', v.reports_csv, name='reports_csv'),
     path('admin-panel/users/', v.admin_users, name='admin_users'),
     path('admin-panel/users/<int:user_id>/role/', v.set_user_role, name='set_user_role'),
     path('admin-panel/ai/', v.admin_ai_page, name='admin_ai_page'),
     path('admin-panel/ai/chat/', v.admin_ai_chat, name='admin_ai_chat'),
+
+    # Blackout Period (FR-ADM-03)
+    path('admin-panel/blackout/', v.admin_blackout, name='admin_blackout'),
+    path('admin-panel/blackout/add/', v.add_blackout, name='add_blackout'),
+    path('admin-panel/blackout/<int:pk>/edit/', v.edit_blackout, name='edit_blackout'),
+    path('admin-panel/blackout/<int:pk>/delete/', v.delete_blackout, name='delete_blackout'),
 ]
 
 if settings.DEBUG:

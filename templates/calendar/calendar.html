@@ -3,16 +3,6 @@
 {% block title %}ปฏิทินห้องประชุม{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/calendar.css' %}">
-<style>
-.week-header-cell { padding:0.625rem 0.5rem; text-align:center; background:var(--muted); border-bottom:2px solid var(--border); border-left:1px solid var(--border); font-size:0.8rem; }
-.week-time-cell { padding:0.375rem 0.5rem; font-size:0.7rem; color:var(--muted-fg); border-bottom:1px solid var(--border); text-align:right; background:var(--card); }
-.week-slot { padding:0.25rem; min-height:44px; border-bottom:1px solid var(--border); border-left:1px solid var(--border); position:relative; background:var(--card); }
-.week-slot:hover { background:hsl(45,30%,96%); }
-.week-event { font-size:0.68rem; padding:3px 5px; border-radius:4px; margin-bottom:2px; line-height:1.3; cursor:pointer; }
-.week-event.approved { background:hsl(142,60%,38%,0.15); color:hsl(142,60%,26%); border-left:3px solid hsl(142,60%,38%); }
-.week-event.pending  { background:hsl(38,95%,50%,0.15); color:hsl(38,80%,28%); border-left:3px solid hsl(38,95%,50%); }
-.today-col { background:hsl(48,100%,50%,0.04) !important; }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -60,9 +50,10 @@
         <div id="weekGrid" style="display:grid;grid-template-columns:64px repeat(5,minmax(130px,1fr));border:1px solid var(--border);border-radius:0.5rem;overflow:hidden;min-width:600px;"></div>
       </div>
       <!-- Week legend -->
-      <div style="display:flex;gap:1.25rem;margin-top:0.875rem;font-size:0.75rem;color:var(--muted-fg);">
+      <div style="display:flex;gap:1.25rem;margin-top:0.875rem;font-size:0.75rem;color:var(--muted-fg);flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:10px;height:10px;border-radius:2px;background:hsl(142,60%,38%,0.3);border-left:3px solid hsl(142,60%,38%);display:inline-block;"></span>อนุมัติแล้ว</div>
         <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:10px;height:10px;border-radius:2px;background:hsl(38,95%,50%,0.3);border-left:3px solid hsl(38,95%,50%);display:inline-block;"></span>รออนุมัติ</div>
+        <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:10px;height:10px;border-radius:2px;background:hsl(0,0%,50%,0.3);border-left:3px solid hsl(0,0%,50%);display:inline-block;"></span>ไม่พร้อมใช้งาน</div>
       </div>
     </div>
   </div>
@@ -90,23 +81,28 @@
       <!-- Days grid -->
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0.375rem;">
         {% for day in calendar_days %}
-        <div class="cal-day {% if day.is_today %}today{% endif %} {% if not day.in_month %}other-month{% endif %}"
+        <div class="cal-day {% if day.is_today %}today{% endif %} {% if not day.in_month %}other-month{% endif %} {% if day.blackouts %}has-unavailable{% endif %}"
              onclick="selectDay('{{ day.date }}')" style="cursor:pointer;">
           <div style="font-size:0.8rem;font-weight:{% if day.is_today %}700{% else %}500{% endif %};color:{% if day.is_today %}var(--primary){% else %}var(--fg){% endif %};">{{ day.day }}</div>
+          {% if day.blackouts %}
+          <div class="cal-event unavailable" title="ไม่พร้อมใช้งาน">ไม่พร้อมใช้งาน</div>
+          {% else %}
           {% for bk in day.bookings %}
           <div class="cal-event {{ bk.status|lower }}">{{ bk.start_time }} {{ bk.room_code }}</div>
           {% endfor %}
           {% if day.more > 0 %}
           <div style="font-size:0.6rem;color:var(--muted-fg);margin-top:0.15rem;">+{{ day.more }}</div>
           {% endif %}
+          {% endif %}
         </div>
         {% endfor %}
       </div>
 
       <!-- Legend -->
-      <div style="display:flex;gap:1.25rem;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted-fg);">
+      <div style="display:flex;gap:1.25rem;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted-fg);flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:12px;height:12px;border-radius:3px;background:hsl(142,60%,38%,0.3);border:1px solid hsl(142,60%,38%);display:inline-block;"></span>อนุมัติแล้ว</div>
         <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:12px;height:12px;border-radius:3px;background:hsl(38,95%,50%,0.3);border:1px solid hsl(38,95%,50%);display:inline-block;"></span>รออนุมัติ</div>
+        <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:12px;height:12px;border-radius:3px;background:hsl(0,0%,80%);border:1px solid hsl(0,0%,50%);display:inline-block;"></span>ไม่พร้อมใช้งาน</div>
         <div style="display:flex;align-items:center;gap:0.375rem;"><span style="width:12px;height:12px;border-radius:3px;background:hsl(48,100%,50%,0.3);border:1px solid var(--secondary);display:inline-block;"></span>วันนี้</div>
       </div>
     </div>
@@ -121,7 +117,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         จองวันนี้
       </a>
-      <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted-fg);margin-bottom:0.625rem;">การจอง</div>
+      <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted-fg);margin-bottom:0.625rem;">สถานะห้อง</div>
       <div id="dayBookings" style="font-size:0.85rem;color:var(--muted-fg);text-align:center;padding:2rem 0;">เลือกวันที่เพื่อดูการจอง</div>
     </div>
   </div>
@@ -131,6 +127,7 @@
 {% block extra_js %}
 <script>
 const allBookings = {{ bookings_json|safe }};
+const allBlackouts = {{ blackouts_json|safe }};
 const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const THAI_DAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
 const THAI_DAYS_SHORT = ['จ','อ','พ','พฤ','ศ'];
@@ -143,10 +140,41 @@ function selectDay(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   document.getElementById('selectedDayLabel').textContent =
     THAI_DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + THAI_MONTHS[d.getMonth()];
-  // Fix: pass the clicked date as both startDate and endDate
   document.getElementById('bookDayBtn').href = '/bookings/new/?startDate=' + dateStr + '&endDate=' + dateStr;
+  
+  const dayBlackouts = allBlackouts.filter(b => b.date === dateStr);
   const bks = allBookings.filter(b => b.date === dateStr);
   const container = document.getElementById('dayBookings');
+  
+  if (dayBlackouts.length > 0) {
+    let html = '<div class="unavailable-range-container" style="border-left:4px solid hsl(0,0%,50%);">';
+    html += '<div class="unavailable-range-header"><span class="unavailable-range-header-icon">!</span>ไม่พร้อมใช้งาน</div>';
+    dayBlackouts.forEach(bp => {
+      html += `<div class="unavailable-bar-title">${bp.title}</div>`;
+      if (bp.note) html += `<div class="unavailable-bar-note">${bp.note}</div>`;
+    });
+    html += '</div>';
+    
+    if (bks.length > 0) {
+      html += '<div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted-fg);margin-bottom:0.625rem;margin-top:1rem;">การจองอื่น ๆ</div>';
+      html += bks.map(b => `
+        <div style="padding:0.75rem;border-radius:0.5rem;border:1px solid var(--border);background:hsl(45,30%,97%);margin-bottom:0.5rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.375rem;">
+            <span style="font-size:0.75rem;font-family:monospace;font-weight:700;color:var(--primary);">${b.start_time}–${b.end_time}</span>
+            <span class="badge ${STATUS_CLS[b.status]}">${STATUS_LABEL[b.status]}</span>
+          </div>
+          <div style="font-weight:600;font-size:0.85rem;">${b.room_code} · ${b.room_name}</div>
+          <div style="font-size:0.75rem;color:var(--muted-fg);margin-top:0.2rem;">${b.purpose}</div>
+          <div style="font-size:0.7rem;color:var(--muted-fg);margin-top:0.2rem;">โดย ${b.booker_name}</div>
+        </div>
+      `).join('');
+    } else {
+      html += '<p style="text-align:center;padding:1rem 0;color:var(--muted-fg);">ไม่มีการจองอื่น ๆ</p>';
+    }
+    container.innerHTML = html;
+    return;
+  }
+  
   if (!bks.length) {
     container.innerHTML = '<p style="text-align:center;padding:2rem 0;color:var(--muted-fg);">ห้องประชุมว่างทั้งหมด</p>';
     return;
@@ -164,9 +192,7 @@ function selectDay(dateStr) {
   `).join('');
 }
 
-// ── Week view ────────────────────────────────
 let weekOffset = 0;
-
 function getWeekStart(offset) {
   const d = new Date();
   const dow = d.getDay();
@@ -175,25 +201,19 @@ function getWeekStart(offset) {
   monday.setHours(0,0,0,0);
   return monday;
 }
-
-function toDateStr(d) {
-  return d.toISOString().split('T')[0];
-}
+function toDateStr(d) { return d.toISOString().split('T')[0]; }
 
 function renderWeek() {
   const start = getWeekStart(weekOffset);
   const end = new Date(start); end.setDate(start.getDate() + 4);
   const fmt = d => d.getDate() + '/' + (d.getMonth()+1);
   document.getElementById('weekLabel').textContent = 'สัปดาห์ ' + fmt(start) + ' – ' + fmt(end);
-
   const hours = [];
   for (let h = 8; h <= 17; h++) hours.push(h);
-
   const days = [];
   for (let i = 0; i < 5; i++) {
     const d = new Date(start); d.setDate(start.getDate()+i); days.push(d);
   }
-
   let html = '<div class="week-time-cell" style="border-left:none;background:var(--muted);"></div>';
   days.forEach((d,i) => {
     const isToday = d.toDateString() === new Date().toDateString();
@@ -204,12 +224,17 @@ function renderWeek() {
       <a href="/bookings/new/?startDate=${dateStr}&endDate=${dateStr}" style="display:inline-block;margin-top:4px;font-size:0.65rem;background:var(--primary);color:#fff;border-radius:9999px;padding:1px 8px;text-decoration:none;">+ จอง</a>
     </div>`;
   });
-
   hours.forEach(h => {
     html += `<div class="week-time-cell">${h}:00</div>`;
     days.forEach(d => {
       const dateStr = toDateStr(d);
       const isToday = d.toDateString() === new Date().toDateString();
+      const blackouts = allBlackouts.filter(b => b.date === dateStr);
+      if (blackouts.length > 0) {
+        let cellHtml = blackouts.map(b => `<div class="week-event unavailable" title="${b.title}">${b.title}</div>`).join('');
+        html += `<div class="week-slot ${isToday?'today-col':''}">${cellHtml}</div>`;
+        return;
+      }
       const bks = allBookings.filter(b => {
         if (b.date !== dateStr) return false;
         const bStart = parseInt(b.start_time.split(':')[0]);
@@ -219,20 +244,19 @@ function renderWeek() {
       let cellHtml = bks.map(b => {
         const cls = b.status === 'approved' ? 'approved' : 'pending';
         return `<div class="week-event ${cls}" title="${b.room_name} | ${b.purpose} | ${b.booker_name}">
-          <b>${b.start_time}–${b.end_time}</b><br>${b.room_code}
+          <b>${b.start_time}–${b.end_time}</b>  
+${b.room_code}
         </div>`;
       }).join('');
       html += `<div class="week-slot ${isToday?'today-col':''}">${cellHtml}</div>`;
     });
   });
-
   document.getElementById('weekGrid').innerHTML = html;
 }
 
 function prevWeek() { weekOffset--; renderWeek(); }
 function nextWeek() { weekOffset++; renderWeek(); }
 function todayWeek() { weekOffset = 0; renderWeek(); }
-
 function switchView(view) {
   document.getElementById('monthView').style.display = view === 'month' ? '' : 'none';
   document.getElementById('weekView').style.display = view === 'week' ? '' : 'none';

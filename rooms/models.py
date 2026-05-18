@@ -19,3 +19,29 @@ class Room(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+
+class BlackoutPeriod(models.Model):
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.CASCADE,
+        related_name='blackout_periods',
+        verbose_name='ห้อง',
+        null=True,
+        blank=True,
+        help_text='ถ้าไม่เลือกห้อง = ปิดทุกห้องพร้อมกัน',
+    )
+    title = models.CharField(max_length=200, verbose_name='ชื่อช่วงเวลาปิด เช่น ปิดเทอมภาคฤดูร้อน')
+    start_date = models.DateField(verbose_name='วันเริ่มต้น')
+    end_date = models.DateField(verbose_name='วันสิ้นสุด')
+    note = models.TextField(blank=True, null=True, verbose_name='หมายเหตุ')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'ช่วงเวลาปิดห้อง'
+        verbose_name_plural = 'ช่วงเวลาปิดห้อง'
+        ordering = ['-start_date']
+
+    def __str__(self):
+        room_str = self.room.code if self.room else 'ทุกห้อง'
+        return f"{self.title} ({room_str}: {self.start_date} – {self.end_date})"

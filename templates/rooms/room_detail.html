@@ -28,7 +28,11 @@
       <div class="gallery-wrap card" style="margin-bottom:1.25rem;" id="gallery">
         {% if room_images %}
           {% for img in room_images %}
+          {% if img|slice:":1" == "/" %}
+          <img class="gallery-img {% if forloop.first %}active{% endif %}" src="{{ img }}" alt="{{ room.name }} รูปที่ {{ forloop.counter }}">
+          {% else %}
           <img class="gallery-img {% if forloop.first %}active{% endif %}" src="{% static img %}" alt="{{ room.name }} รูปที่ {{ forloop.counter }}">
+          {% endif %}
           {% endfor %}
           {% if room_images|length > 1 %}
           <button class="gallery-btn" style="left:0.625rem;" onclick="galPrev()" aria-label="ก่อนหน้า">
@@ -122,7 +126,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+  {% block extra_js %}
 <script>
 {% if room_images|length > 1 %}
 const galImgs = document.querySelectorAll('.gallery-img');
@@ -143,4 +147,4 @@ function galPrev() { galGo((galIdx - 1 + galImgs.length) % galImgs.length); }
 function galNext() { galGo((galIdx + 1) % galImgs.length); }
 {% endif %}
 </script>
-{% endblock %}
+  {% endblock %}

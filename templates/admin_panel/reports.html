@@ -29,7 +29,9 @@
     <div class="card stat-card"><div class="stat-label">อัตราใช้งานเฉลี่ย</div><div class="stat-value">{{ summary.utilization }}%</div></div>
   </div>
 
-  <div class="grid grid-2">
+  <!-- Row 1: by room + by type -->
+  <div class="grid grid-2" style="margin-bottom:1.5rem;">
+
     <!-- By room -->
     <div class="card" style="padding:1.5rem;">
       <h2 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">สถิติแต่ละห้อง</h2>
@@ -47,33 +49,104 @@
     </div>
 
     <!-- By type -->
-    <div style="display:flex;flex-direction:column;gap:1rem;">
-      <div class="card" style="padding:1.5rem;">
-        <h2 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">แยกตามประเภท</h2>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;">
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem;padding:0.5rem 0;border-bottom:1px solid var(--border);">
-            <span>สอนปกติ/ชดเชย/เสริม</span>
-            <span class="badge badge-approved">{{ by_type.TEACHING }} ครั้ง</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem;padding:0.5rem 0;">
-            <span>จัดอบรม/จัดติว</span>
-            <span class="badge badge-outline">{{ by_type.TRAINING }} ครั้ง</span>
-          </div>
+    <div class="card" style="padding:1.5rem;">
+      <h2 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">แยกตามประเภทการใช้งาน</h2>
+      {% if summary.total > 0 %}
+      <div style="height:28px;border-radius:9999px;overflow:hidden;display:flex;margin-bottom:1rem;background:var(--muted);">
+        {% if by_type.TEACHING_PCT > 0 %}
+        <div style="width:{{ by_type.TEACHING_PCT }}%;background:#534AB7;height:100%;transition:width 0.6s;"></div>
+        {% endif %}
+        {% if by_type.TRAINING_PCT > 0 %}
+        <div style="width:{{ by_type.TRAINING_PCT }}%;background:#1D9E75;height:100%;transition:width 0.6s;"></div>
+        {% endif %}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.625rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem;">
+          <span style="display:flex;align-items:center;gap:0.5rem;">
+            <span style="width:12px;height:12px;border-radius:2px;background:#534AB7;display:inline-block;"></span>
+            สอนปกติ/ชดเชย/เสริม
+          </span>
+          <span style="font-weight:600;">{{ by_type.TEACHING }} ครั้ง <span style="color:var(--muted-fg);font-weight:400;">({{ by_type.TEACHING_PCT }}%)</span></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem;">
+          <span style="display:flex;align-items:center;gap:0.5rem;">
+            <span style="width:12px;height:12px;border-radius:2px;background:#1D9E75;display:inline-block;"></span>
+            จัดอบรม/จัดติว
+          </span>
+          <span style="font-weight:600;">{{ by_type.TRAINING }} ครั้ง <span style="color:var(--muted-fg);font-weight:400;">({{ by_type.TRAINING_PCT }}%)</span></span>
         </div>
       </div>
-      {% if by_program %}
-      <div class="card" style="padding:1.5rem;">
-        <h2 style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;">แยกตามหลักสูตร</h2>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;">
-          {% for prog, cnt in by_program.items %}
-          <div style="display:flex;justify-content:space-between;font-size:0.875rem;padding:0.375rem 0;border-bottom:1px solid var(--border);">
-            <span>{{ prog }}</span><span class="badge badge-outline">{{ cnt }}</span>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
+      {% else %}
+      <p style="color:var(--muted-fg);font-size:0.875rem;">ไม่มีข้อมูลในช่วงเวลานี้</p>
       {% endif %}
     </div>
   </div>
+
+  <!-- Row 2: by program FR-RPT-04 -->
+  {% if by_program %}
+  <div class="card" style="padding:1.5rem;margin-bottom:1.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+      <h2 style="font-weight:700;font-size:1.1rem;margin:0;">แยกตามหลักสูตร <span style="font-weight:400;color:var(--muted-fg);font-size:0.9rem;">(เฉพาะการสอน)</span></h2>
+      <span class="badge badge-outline" style="font-size:0.8rem;">{{ by_type.TEACHING }} รายการ</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+      <!-- Bar chart -->
+      <div>
+        {% for prog in by_program %}
+        <div style="margin-bottom:1rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;margin-bottom:0.375rem;">
+            <span style="font-weight:500;display:flex;align-items:center;gap:0.4rem;">
+              <span style="width:10px;height:10px;border-radius:2px;background:{{ prog.color }};display:inline-block;flex-shrink:0;"></span>
+              {{ prog.label }}
+            </span>
+            <span style="color:var(--muted-fg);">{{ prog.count }} ครั้ง ({{ prog.pct }}%)</span>
+          </div>
+          <div style="height:10px;background:var(--muted);border-radius:9999px;overflow:hidden;">
+            <div style="height:100%;background:{{ prog.color }};border-radius:9999px;width:{{ prog.bar_width }}%;transition:width 0.6s ease;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <!-- Table summary -->
+      <div>
+        <table style="width:100%;font-size:0.875rem;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="text-align:left;padding:0.375rem 0;font-weight:600;">หลักสูตร</th>
+              <th style="text-align:center;padding:0.375rem 0;font-weight:600;">ครั้ง</th>
+              <th style="text-align:right;padding:0.375rem 0;font-weight:600;">สัดส่วน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for prog in by_program %}
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:0.5rem 0;">
+                <span style="display:flex;align-items:center;gap:0.4rem;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:{{ prog.color }};display:inline-block;"></span>
+                  {{ prog.short }}
+                </span>
+              </td>
+              <td style="text-align:center;padding:0.5rem 0;font-weight:600;">{{ prog.count }}</td>
+              <td style="text-align:right;padding:0.5rem 0;color:var(--muted-fg);">{{ prog.pct }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="padding:0.5rem 0;font-weight:700;">รวม</td>
+              <td style="text-align:center;padding:0.5rem 0;font-weight:700;">{{ by_type.TEACHING }}</td>
+              <td style="text-align:right;padding:0.5rem 0;font-weight:700;">100%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% elif summary.total > 0 %}
+  <div class="card" style="padding:1.25rem 1.5rem;color:var(--muted-fg);font-size:0.875rem;">
+    ไม่มีข้อมูลหลักสูตรในช่วงเวลานี้ (อาจมีเฉพาะการอบรม/จัดติว)
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}
