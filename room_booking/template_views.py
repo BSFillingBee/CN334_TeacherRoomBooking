@@ -77,18 +77,22 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     error = None
+    next_url = request.GET.get('next', '') or request.POST.get('next', '')
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
-            next_url = request.GET.get('next', '')
+            if request.POST.get('remember_me'):
+                request.session.set_expiry(getattr(settings, 'REMEMBER_ME_SESSION_AGE', 30 * 24 * 60 * 60))
+            else:
+                request.session.set_expiry(getattr(settings, 'SESSION_COOKIE_AGE', 8 * 60 * 60))
             if next_url:
                 return redirect(next_url)
             return redirect('admin_approval' if user.is_admin else 'dashboard')
         error = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
-    return render(request, 'accounts/login.html', {'error': error})
+    return render(request, 'accounts/login.html', {'error': error, 'next': next_url})
 
 
 def logout_view(request):
@@ -171,7 +175,8 @@ def book_room(request):
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             start_time = datetime.strptime(start_time_str, '%H:%M').time()
             end_time = datetime.strptime(end_time_str, '%H:%M').time()
-            days_of_week = ','.join(d.strip() for d in days_raw.split(',') if d.strip() in ('0','1','2','3','4'))
+            selected_day_values = [d.strip() for d in days_raw.split(',') if d.strip() in ('0', '1', '2', '3', '4')]
+            days_of_week = ','.join(selected_day_values)
 
             if not days_of_week:
                 raise ValueError('กรุณาเลือกอย่างน้อยหนึ่งวัน')
@@ -244,7 +249,7 @@ def book_room(request):
         'selected_room_id': request.GET.get('roomId', selected_room_id),
         'selected_days': selected_days,
         'selected_days_json': json.dumps(selected_days),
-        'form_data': {},
+        'form_data': request.GET,
     })
 
 
@@ -537,7 +542,15 @@ def _validate_ai_booking(parsed):
     end_time = datetime.strptime(str(parsed.get('end')), '%H:%M').time()
     if start_time >= end_time:
         raise ValueError('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น')
-
+    has_selected_day_in_range = False
+    check = start_date
+    while check <= end_date:
+        if str(check.weekday()) in selected_day_values:
+            has_selected_day_in_range = True
+            break
+        check += timedelta(days=1)
+        if not has_selected_day_in_range:
+            raise ValueError('วันที่เลือกไม่อยู่ในช่วงวันที่เริ่มต้นและสิ้นสุด')
     conflicts = Booking.objects.filter(
         room=room, status__in=['APPROVED', 'PENDING'],
         start_date__lte=booking_date, end_date__gte=booking_date,
@@ -1076,5 +1089,3 @@ def set_user_role(request, user_id):
         user.save(update_fields=['role'])
         messages.success(request, f'เปลี่ยน Role ของ {user.username} สำเร็จ')
     return redirect('admin_users')
-
-

@@ -71,6 +71,12 @@
                placeholder="รหัสผ่าน TU Account" required>
       </div>
 
+      <label class="remember-row" for="remember_me">
+        <input type="checkbox" id="remember_me" name="remember_me" value="1"
+               {% if request.method != 'POST' or request.POST.remember_me %}checked{% endif %}>
+        <span>Remember login for 30 days</span>
+      </label>
+
       <button type="submit" class="btn-login">เข้าสู่ระบบด้วย TU REST API</button>
     </form>
 
