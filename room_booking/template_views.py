@@ -21,6 +21,9 @@ from django.conf import settings
 
 User = get_user_model()
 
+WEEKDAY_ONLY_MESSAGE = '\u0e23\u0e30\u0e1a\u0e1a\u0e23\u0e2d\u0e07\u0e23\u0e31\u0e1a\u0e01\u0e32\u0e23\u0e08\u0e2d\u0e07\u0e2b\u0e49\u0e2d\u0e07\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e27\u0e31\u0e19\u0e08\u0e31\u0e19\u0e17\u0e23\u0e4c\u2013\u0e27\u0e31\u0e19\u0e28\u0e38\u0e01\u0e23\u0e4c\u0e40\u0e17\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19'
+PAST_DATE_MESSAGE = '\u0e44\u0e21\u0e48\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e08\u0e2d\u0e07\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07\u0e08\u0e32\u0e01\u0e27\u0e31\u0e19\u0e1b\u0e31\u0e08\u0e08\u0e38\u0e1a\u0e31\u0e19\u0e44\u0e14\u0e49'
+
 THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
                'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 TIME_SLOTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00']
@@ -40,6 +43,30 @@ PROGRAMS = [
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
+
+# Shared validation for all booking entry points.
+def _validate_booking_dates(start_date, end_date, selected_day_values=None):
+    today = timezone.localdate()
+
+    if start_date < today or end_date < today:
+        raise ValueError(PAST_DATE_MESSAGE)
+    if start_date > end_date:
+        raise ValueError('\u0e27\u0e31\u0e19\u0e2a\u0e34\u0e49\u0e19\u0e2a\u0e38\u0e14\u0e15\u0e49\u0e2d\u0e07\u0e44\u0e21\u0e48\u0e01\u0e48\u0e2d\u0e19\u0e27\u0e31\u0e19\u0e40\u0e23\u0e34\u0e48\u0e21\u0e15\u0e49\u0e19')
+    if selected_day_values is not None:
+        if any(day not in ('0', '1', '2', '3', '4') for day in selected_day_values):
+            raise ValueError(WEEKDAY_ONLY_MESSAGE)
+
+        has_selected_day_in_range = False
+        check = start_date
+        while check <= end_date:
+            if str(check.weekday()) in selected_day_values:
+                has_selected_day_in_range = True
+                break
+            check += timedelta(days=1)
+
+        if not has_selected_day_in_range:
+            raise ValueError('à¸§à¸±à¸™à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸à¹„à¸¡à¹ˆà¸­à¸¢à¸¹à¹ˆà¹ƒà¸™à¸Šà¹ˆà¸§à¸‡à¸§à¸±à¸™à¸—à¸µà¹ˆà¹€à¸£à¸´à¹ˆà¸¡à¸•à¹‰à¸™à¹à¸¥à¸°à¸ªà¸´à¹‰à¸™à¸ªà¸¸à¸”')
+
 
 ROOM_THUMB = {
     '406-3':   'images/rooms/406-3.jpg',
@@ -165,7 +192,7 @@ def book_room(request):
     rooms_json = json.dumps([{'id': r.id, 'code': r.code, 'name': r.name, 'capacity': r.capacity} for r in rooms])
 
     selected_room_id = request.GET.get('roomId', str(rooms.first().id) if rooms.exists() else '')
-    today = date.today().isoformat()
+    today = timezone.localdate().isoformat()
     requested_start = request.GET.get('startDate') or today
     requested_end = request.GET.get('endDate') or requested_start
     try:
@@ -200,13 +227,12 @@ def book_room(request):
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             start_time = datetime.strptime(start_time_str, '%H:%M').time()
             end_time = datetime.strptime(end_time_str, '%H:%M').time()
-            selected_day_values = [d.strip() for d in days_raw.split(',') if d.strip() in ('0', '1', '2', '3', '4')]
+            selected_day_values = [d.strip() for d in days_raw.split(',') if d.strip()]
             days_of_week = ','.join(selected_day_values)
 
             if not days_of_week:
                 raise ValueError('กรุณาเลือกอย่างน้อยหนึ่งวัน')
-            if start_date > end_date:
-                raise ValueError('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น')
+            _validate_booking_dates(start_date, end_date, selected_day_values)
             if start_time >= end_time:
                 raise ValueError('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น')
 
@@ -223,13 +249,10 @@ def book_room(request):
             while check <= end_date:
                 if str(check.weekday()) in days_of_week.split(','):
                     # Blackout Period check
-                    blackout = BlackoutPeriod.objects.filter(
-                        start_date__lte=check, end_date__gte=check,
-                    ).filter(
-                        Q(room=room) | Q(room__isnull=True)
-                    ).first()
+                    blackout = _get_active_blackout(room, check)
                     if blackout:
-                        raise ValueError(f'ห้องนี้ไม่พร้อมใช้งานในช่วงวันที่ {check} เนื่องจาก: {blackout.title}')
+                        blackout_range = _format_thai_date_range(blackout.start_date, blackout.end_date)
+                        raise ValueError(f'ห้องนี้ไม่พร้อมใช้งานในช่วงวันที่ {blackout_range} เนื่องจาก: {blackout.title}')
 
                     conflicts = Booking.objects.filter(
                         room=room, status__in=['APPROVED', 'PENDING'],
@@ -238,7 +261,9 @@ def book_room(request):
                     )
                     for b in conflicts:
                         if str(check.weekday()) in b.get_days_list():
-                            raise ValueError(f'มีการจองห้องนี้ในช่วงเวลาดังกล่าวแล้ว (วันที่ {check})')
+                            if b.requester_id == request.user.id:
+                                raise ValueError('คุณได้ทำการจองในช่วงเวลาดังกล่าวแล้ว')
+                            raise ValueError('มีการจองในช่วงเวลาดังกล่าวแล้ว')
                 check += timedelta(days=1)
 
             booking = Booking.objects.create(
@@ -393,7 +418,7 @@ def calendar_view(request):
             'is_today': d == date.today(),
             'bookings': [{'start_time': bk.start_time.strftime('%H:%M'), 'room_code': bk.room.code, 'status': bk.status.lower()} for bk in bks[:2]],
             'more': max(0, len(bks) - 2),
-            'blackouts': [{'title': bp.title, 'note': bp.note} for bp in bps],
+            'blackouts': [{'title': bp.title, 'note': bp.note, 'room_label': bp.room.code if bp.room else 'ทุกห้อง'} for bp in bps],
         })
         d += timedelta(days=1)
     # All bookings JSON for JS
@@ -426,6 +451,7 @@ def calendar_view(request):
                 'note': bp.note,
                 'room_id': bp.room_id,
                 'room_code': bp.room.code if bp.room else 'ทุกห้อง',
+                'room_label': bp.room.code if bp.room else 'ทุกห้อง',
             })
             d += timedelta(days=1)
     
@@ -603,6 +629,33 @@ def _validate_ai_booking(parsed):
     booking_date = datetime.strptime(str(parsed.get('date')), '%Y-%m-%d').date()
     start_time = datetime.strptime(str(parsed.get('start')), '%H:%M').time()
     end_time = datetime.strptime(str(parsed.get('end')), '%H:%M').time()
+    _validate_booking_dates(booking_date, booking_date, [str(booking_date.weekday())])
+    if start_time >= end_time:
+        raise ValueError('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น')
+    conflicts = Booking.objects.filter(
+        room=room, status__in=['APPROVED', 'PENDING'],
+        start_date__lte=booking_date, end_date__gte=booking_date,
+        start_time__lt=end_time, end_time__gt=start_time,
+    )
+    for booking in conflicts:
+        if str(booking_date.weekday()) in booking.get_days_list():
+            raise ValueError(f'à¸«à¹‰à¸­à¸‡ {room.code} à¸¡à¸µà¸à¸²à¸£à¸ˆà¸­à¸‡à¹ƒà¸™à¸Šà¹ˆà¸§à¸‡à¹€à¸§à¸¥à¸²à¸™à¸µà¹‰à¹à¸¥à¹‰à¸§')
+
+    ai_blackout = BlackoutPeriod.objects.filter(
+        start_date__lte=booking_date, end_date__gte=booking_date,
+    ).filter(Q(room=room) | Q(room__isnull=True)).first()
+    if ai_blackout:
+        raise ValueError(f'à¸«à¹‰à¸­à¸‡ {room.code} à¹„à¸¡à¹ˆà¸žà¸£à¹‰à¸­à¸¡à¹ƒà¸Šà¹‰à¸‡à¸²à¸™à¹ƒà¸™à¸§à¸±à¸™à¸—à¸µà¹ˆ {booking_date} à¹€à¸™à¸·à¹ˆà¸­à¸‡à¸ˆà¸²à¸: {ai_blackout.title}')
+
+    parsed['roomId'] = str(room.id)
+    parsed['roomCode'] = room.code
+    parsed['roomName'] = room.name
+    parsed['date'] = booking_date.isoformat()
+    parsed['start'] = start_time.strftime('%H:%M')
+    parsed['end'] = end_time.strftime('%H:%M')
+    parsed['attendees'] = parsed.get('attendees') or ''
+    parsed['purpose'] = (parsed.get('purpose') or 'à¸ˆà¸­à¸‡à¸œà¹ˆà¸²à¸™ AI').strip()
+    return parsed
     if start_time >= end_time:
         raise ValueError('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น')
     has_selected_day_in_range = False
@@ -639,6 +692,99 @@ def _validate_ai_booking(parsed):
     parsed['attendees'] = parsed.get('attendees') or ''
     parsed['purpose'] = (parsed.get('purpose') or 'จองผ่าน AI').strip()
     return parsed
+
+# Clean redefinitions to avoid mojibake in older in-file strings.
+def _validate_booking_dates(start_date, end_date, selected_day_values=None):
+    today = timezone.localdate()
+
+    if start_date < today or end_date < today:
+        raise ValueError(PAST_DATE_MESSAGE)
+    if start_date > end_date:
+        raise ValueError('\u0e27\u0e31\u0e19\u0e2a\u0e34\u0e49\u0e19\u0e2a\u0e38\u0e14\u0e15\u0e49\u0e2d\u0e07\u0e44\u0e21\u0e48\u0e01\u0e48\u0e2d\u0e19\u0e27\u0e31\u0e19\u0e40\u0e23\u0e34\u0e48\u0e21\u0e15\u0e49\u0e19')
+    if selected_day_values is not None:
+        if any(day not in ('0', '1', '2', '3', '4') for day in selected_day_values):
+            raise ValueError(WEEKDAY_ONLY_MESSAGE)
+
+        has_selected_day_in_range = False
+        check = start_date
+        while check <= end_date:
+            if str(check.weekday()) in selected_day_values:
+                has_selected_day_in_range = True
+                break
+            check += timedelta(days=1)
+
+        if not has_selected_day_in_range:
+            raise ValueError('\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e44\u0e21\u0e48\u0e2d\u0e22\u0e39\u0e48\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e40\u0e23\u0e34\u0e48\u0e21\u0e15\u0e49\u0e19\u0e41\u0e25\u0e30\u0e2a\u0e34\u0e49\u0e19\u0e2a\u0e38\u0e14')
+
+
+def _get_active_blackout(room, target_date):
+    return BlackoutPeriod.objects.filter(
+        start_date__lte=target_date,
+        end_date__gte=target_date,
+    ).filter(
+        Q(room_id=room.id) | Q(room__isnull=True)
+    ).order_by('room_id').first()
+
+
+def _format_thai_date_range(start_date, end_date):
+    thai_months = {
+        1: 'ม.ค.',
+        2: 'ก.พ.',
+        3: 'มี.ค.',
+        4: 'เม.ย.',
+        5: 'พ.ค.',
+        6: 'มิ.ย.',
+        7: 'ก.ค.',
+        8: 'ส.ค.',
+        9: 'ก.ย.',
+        10: 'ต.ค.',
+        11: 'พ.ย.',
+        12: 'ธ.ค.',
+    }
+
+    if start_date == end_date:
+        return f'{start_date.day} {thai_months[start_date.month]} {start_date.year}'
+    if start_date.year == end_date.year and start_date.month == end_date.month:
+        return f'{start_date.day}-{end_date.day} {thai_months[start_date.month]} {start_date.year}'
+    if start_date.year == end_date.year:
+        return f'{start_date.day} {thai_months[start_date.month]} - {end_date.day} {thai_months[end_date.month]} {start_date.year}'
+    return f'{start_date.day} {thai_months[start_date.month]} {start_date.year} - {end_date.day} {thai_months[end_date.month]} {end_date.year}'
+
+
+def _validate_ai_booking(parsed):
+    room = _resolve_room(parsed.get('roomId') or parsed.get('roomCode') or parsed.get('room'))
+    booking_date = datetime.strptime(str(parsed.get('date')), '%Y-%m-%d').date()
+    start_time = datetime.strptime(str(parsed.get('start')), '%H:%M').time()
+    end_time = datetime.strptime(str(parsed.get('end')), '%H:%M').time()
+
+    _validate_booking_dates(booking_date, booking_date, [str(booking_date.weekday())])
+    if start_time >= end_time:
+        raise ValueError('\u0e40\u0e27\u0e25\u0e32\u0e2a\u0e34\u0e49\u0e19\u0e2a\u0e38\u0e14\u0e15\u0e49\u0e2d\u0e07\u0e2d\u0e22\u0e39\u0e48\u0e2b\u0e25\u0e31\u0e07\u0e40\u0e27\u0e25\u0e32\u0e40\u0e23\u0e34\u0e48\u0e21\u0e15\u0e49\u0e19')
+
+    conflicts = Booking.objects.filter(
+        room=room, status__in=['APPROVED', 'PENDING'],
+        start_date__lte=booking_date, end_date__gte=booking_date,
+        start_time__lt=end_time, end_time__gt=start_time,
+    )
+    for booking in conflicts:
+        if str(booking_date.weekday()) in booking.get_days_list():
+            raise ValueError(f'\u0e2b\u0e49\u0e2d\u0e07 {room.code} \u0e21\u0e35\u0e01\u0e32\u0e23\u0e08\u0e2d\u0e07\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e40\u0e27\u0e25\u0e32\u0e19\u0e35\u0e49\u0e41\u0e25\u0e49\u0e27')
+
+    ai_blackout = _get_active_blackout(room, booking_date)
+    if ai_blackout:
+        blackout_range = _format_thai_date_range(ai_blackout.start_date, ai_blackout.end_date)
+        raise ValueError(f'\u0e2b\u0e49\u0e2d\u0e07 {room.code} \u0e44\u0e21\u0e48\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48 {blackout_range} \u0e40\u0e19\u0e37\u0e48\u0e2d\u0e07\u0e08\u0e32\u0e01: {ai_blackout.title}')
+
+    parsed['roomId'] = str(room.id)
+    parsed['roomCode'] = room.code
+    parsed['roomName'] = room.name
+    parsed['date'] = booking_date.isoformat()
+    parsed['start'] = start_time.strftime('%H:%M')
+    parsed['end'] = end_time.strftime('%H:%M')
+    parsed['attendees'] = parsed.get('attendees') or ''
+    parsed['purpose'] = (parsed.get('purpose') or '\u0e08\u0e2d\u0e07\u0e1c\u0e48\u0e32\u0e19 AI').strip()
+    return parsed
+
 
 @login_required
 def ai_booking(request):
@@ -1149,16 +1295,29 @@ def toggle_room(request, pk):
     return redirect('admin_rooms')
 
 
-@admin_required
-def admin_reports(request):
-    today = date.today()
-    start_str = request.GET.get('start', today.replace(day=1).isoformat())
+def _get_report_date_range(request):
+    today = timezone.localdate()
+    default_start = today.replace(day=1)
+    start_str = request.GET.get('start', default_start.isoformat())
     end_str = request.GET.get('end', today.isoformat())
+
     try:
         start = datetime.strptime(start_str, '%Y-%m-%d').date()
         end = datetime.strptime(end_str, '%Y-%m-%d').date()
     except ValueError:
-        start, end = today.replace(day=1), today
+        messages.error(request, 'รูปแบบวันที่ไม่ถูกต้อง ระบบใช้ช่วงวันที่เริ่มต้นของเดือนถึงวันนี้แทน')
+        return default_start, today, default_start.isoformat(), today.isoformat()
+
+    if end < start:
+        messages.error(request, 'วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น')
+        return default_start, today, default_start.isoformat(), today.isoformat()
+
+    return start, end, start.isoformat(), end.isoformat()
+
+
+@admin_required
+def admin_reports(request):
+    start, end, start_str, end_str = _get_report_date_range(request)
 
     approved = Booking.objects.filter(status='APPROVED', start_date__lte=end, end_date__gte=start).select_related('room', 'requester')
     total_days = max((end - start).days + 1, 1)
@@ -1226,11 +1385,18 @@ def admin_reports(request):
 
 @admin_required
 def reports_csv(request):
+    start, end, _, _ = _get_report_date_range(request)
+    bookings = Booking.objects.filter(
+        status='APPROVED',
+        start_date__lte=end,
+        end_date__gte=start,
+    ).select_related('room', 'requester').order_by('-created_at')
+
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="booking_report.csv"'
     writer = csv.writer(response)
     writer.writerow(['ID', 'ห้อง', 'ผู้จอง', 'ประเภท', 'วัตถุประสงค์', 'วันเริ่ม', 'วันสิ้นสุด', 'เวลา', 'สถานะ'])
-    for b in Booking.objects.select_related('room', 'requester').order_by('-created_at'):
+    for b in bookings:
         purpose = b.course_name if b.purpose_type == 'TEACHING' else b.topic
         writer.writerow([b.id, f"{b.room.code} {b.room.name}", b.requester.get_full_name() or b.requester.username,
                          b.get_purpose_type_display(), purpose or '', b.start_date, b.end_date,

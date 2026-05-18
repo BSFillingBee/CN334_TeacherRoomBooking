@@ -16,6 +16,18 @@
 .cal-day.other-month { opacity: 0.35; }
 .cal-day.has-unavailable { border-color: hsl(0, 0%, 70%); background: hsl(0, 0%, 97%); }
 
+/* Make blackout days visually distinct without changing layout size */
+#monthView .cal-day.has-unavailable {
+  border: 2px solid hsl(0, 0%, 68%);
+  background: hsl(0, 0%, 98%);
+  box-shadow: inset 0 0 0 1px hsl(0, 0%, 86%);
+}
+
+#monthView .cal-day.has-unavailable.today {
+  background: linear-gradient(180deg, hsl(48, 100%, 93%) 0%, hsl(0, 0%, 98%) 100%);
+  border-color: hsl(44, 100%, 50%);
+}
+
 /* Calendar Events */
 .cal-event {
   font-size: 0.78rem;
@@ -34,6 +46,21 @@
   color: hsl(0, 0%, 30%);
   border-left: 3px solid hsl(0, 0%, 50%);
   font-weight: 500;
+}
+
+#monthView .cal-day.has-unavailable .cal-event.unavailable {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.34rem 0.45rem;
+  border-left: 4px solid hsl(0, 0%, 42%);
+  border-radius: 0.22rem;
+  background: hsl(0, 0%, 82%);
+  color: hsl(0, 0%, 36%);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Week View Specific */
@@ -80,6 +107,12 @@
 .week-event.pending { background: hsl(38, 95%, 50%, 0.15); color: hsl(38, 80%, 28%); border-left: 3px solid hsl(38, 95%, 50%); }
 .week-event.unavailable { background: hsl(0, 0%, 50%, 0.2); color: hsl(0, 0%, 30%); border-left: 3px solid hsl(0, 0%, 50%); font-weight: 500; }
 
+#weekView .week-event.unavailable {
+  background: hsl(0, 0%, 82%);
+  color: hsl(0, 0%, 36%);
+  border-left: 4px solid hsl(0, 0%, 42%);
+}
+
 /* iOS-style Unavailable Components */
 .unavailable-bar {
   display: flex;
@@ -118,6 +151,7 @@
   background: hsl(0, 0%, 95%);
   border-radius: 0.5rem;
   border: 1px solid hsl(0, 0%, 85%);
+  text-align: left;
 }
 
 .unavailable-range-header {
@@ -128,6 +162,7 @@
   font-weight: 600;
   color: hsl(0, 0%, 20%);
   font-size: 0.9rem;
+  text-align: left;
 }
 
 .unavailable-range-header-icon {

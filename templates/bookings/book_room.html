@@ -62,12 +62,12 @@
             <div class="form-group">
               <label>วันเริ่มต้น</label>
               <input type="date" name="startDate"
-                value="{{ form_data.startDate|default:initial_start_date|default:today }}" required>
+                value="{{ form_data.startDate|default:initial_start_date|default:today }}" min="{{ today }}" required>
             </div>
             <div class="form-group">
               <label>วันสิ้นสุด</label>
               <input type="date" name="endDate" value="{{ form_data.endDate|default:initial_end_date|default:today }}"
-                required>
+                min="{{ today }}" required>
             </div>
           </div>
 
@@ -243,6 +243,37 @@
     document.getElementById('trainingFields').style.display = type === 'TRAINING' ? '' : 'none';
   }
 
+  const todayStr = '{{ today }}';
+  const pastDateMessage = 'ไม่สามารถจองย้อนหลังจากวันปัจจุบันได้';
+  const startDateInput = document.querySelector('input[name="startDate"]');
+  const endDateInput = document.querySelector('input[name="endDate"]');
+  const bookForm = document.getElementById('bookForm');
+
+  function validateDateInputs(showAlert = false) {
+    const startDate = startDateInput.value;
+    const endDate = endDateInput.value;
+    let message = '';
+
+    if ((startDate && startDate < todayStr) || (endDate && endDate < todayStr)) {
+      message = pastDateMessage;
+    }
+
+    [startDateInput, endDateInput].forEach(input => input.setCustomValidity(message));
+    if (showAlert && message) {
+      alert(message);
+    }
+    return !message;
+  }
+
+  [startDateInput, endDateInput].forEach(input => {
+    input.addEventListener('change', () => validateDateInputs(false));
+  });
+  bookForm.addEventListener('submit', (event) => {
+    if (!validateDateInputs(true)) {
+      event.preventDefault();
+    }
+  });
+
   // Update summary
   document.querySelectorAll('input[name="startDate"],input[name="endDate"],select[name="startTime"],select[name="endTime"]').forEach(el => {
     el.addEventListener('change', updateSummary);
@@ -256,6 +287,7 @@
     document.getElementById('summaryTime').textContent = st + ' – ' + et + ' น.';
   }
   updateSummary();
+  validateDateInputs(false);
 
   // Init selected room
   {% if selected_room_id %}

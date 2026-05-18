@@ -85,7 +85,12 @@
              onclick="selectDay('{{ day.date }}')" style="cursor:pointer;">
           <div style="font-size:0.8rem;font-weight:{% if day.is_today %}700{% else %}500{% endif %};color:{% if day.is_today %}var(--primary){% else %}var(--fg){% endif %};">{{ day.day }}</div>
           {% if day.blackouts %}
-          <div class="cal-event unavailable" title="ไม่พร้อมใช้งาน">ไม่พร้อมใช้งาน</div>
+          {% for bp in day.blackouts|slice:":2" %}
+          <div class="cal-event unavailable" title="{{ bp.room_label }} ไม่พร้อมใช้งาน">{{ bp.room_label }}</div>
+          {% endfor %}
+          {% if day.blackouts|length > 2 %}
+          <div style="font-size:0.6rem;color:var(--muted-fg);margin-top:0.15rem;">+{{ day.blackouts|length|add:"-2" }}</div>
+          {% endif %}
           {% else %}
           {% for bk in day.bookings %}
           <div class="cal-event {{ bk.status|lower }}">{{ bk.start_time }} {{ bk.room_code }}</div>
@@ -150,7 +155,7 @@ function selectDay(dateStr) {
     let html = '<div class="unavailable-range-container" style="border-left:4px solid hsl(0,0%,50%);">';
     html += '<div class="unavailable-range-header"><span class="unavailable-range-header-icon">!</span>ไม่พร้อมใช้งาน</div>';
     dayBlackouts.forEach(bp => {
-      html += `<div class="unavailable-bar-title">${bp.title}</div>`;
+      html += `<div class="unavailable-bar-title">${bp.room_label} · ${bp.title}</div>`;
       if (bp.note) html += `<div class="unavailable-bar-note">${bp.note}</div>`;
     });
     html += '</div>';
