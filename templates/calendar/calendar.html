@@ -82,7 +82,7 @@
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0.375rem;">
         {% for day in calendar_days %}
         <div class="cal-day {% if day.is_today %}today{% endif %} {% if not day.in_month %}other-month{% endif %} {% if day.blackouts %}has-unavailable{% endif %}"
-             onclick="selectDay('{{ day.date }}')" style="cursor:pointer;">
+             onclick="selectDay('{{ day.date }}', this)" style="cursor:pointer;">
           <div style="font-size:0.8rem;font-weight:{% if day.is_today %}700{% else %}500{% endif %};color:{% if day.is_today %}var(--primary){% else %}var(--fg){% endif %};">{{ day.day }}</div>
           {% if day.blackouts %}
           {% for bp in day.blackouts|slice:":2" %}
@@ -139,9 +139,9 @@ const THAI_DAYS_SHORT = ['จ','อ','พ','พฤ','ศ'];
 const STATUS_LABEL = {pending:'รออนุมัติ',approved:'อนุมัติแล้ว',rejected:'ไม่อนุมัติ',cancelled:'ยกเลิก'};
 const STATUS_CLS = {pending:'badge-pending',approved:'badge-approved',rejected:'badge-rejected',cancelled:'badge-cancelled'};
 
-function selectDay(dateStr) {
+function selectDay(dateStr, target) {
   document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
+  if (target) target.classList.add('selected');
   const d = new Date(dateStr + 'T00:00:00');
   document.getElementById('selectedDayLabel').textContent =
     THAI_DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + THAI_MONTHS[d.getMonth()];
@@ -206,7 +206,12 @@ function getWeekStart(offset) {
   monday.setHours(0,0,0,0);
   return monday;
 }
-function toDateStr(d) { return d.toISOString().split('T')[0]; }
+function toDateStr(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function renderWeek() {
   const start = getWeekStart(weekOffset);

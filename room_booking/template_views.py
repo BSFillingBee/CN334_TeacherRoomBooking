@@ -67,6 +67,23 @@ def _validate_booking_dates(start_date, end_date, selected_day_values=None):
         if not has_selected_day_in_range:
             raise ValueError('à¸§à¸±à¸™à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸à¹„à¸¡à¹ˆà¸­à¸¢à¸¹à¹ˆà¹ƒà¸™à¸Šà¹ˆà¸§à¸‡à¸§à¸±à¸™à¸—à¸µà¹ˆà¹€à¸£à¸´à¹ˆà¸¡à¸•à¹‰à¸™à¹à¸¥à¸°à¸ªà¸´à¹‰à¸™à¸ªà¸¸à¸”')
 
+def _booking_duration_hours(booking):
+    start = datetime.combine(date.min, booking.start_time)
+    end = datetime.combine(date.min, booking.end_time)
+    return (end - start).total_seconds() / 3600
+
+
+def _occurrence_dates_in_range(booking, start, end):
+    return [
+        occurrence
+        for occurrence in booking.get_occurrence_dates()
+        if start <= occurrence <= end
+    ]
+
+
+def _occurrence_count_in_range(booking, start, end):
+    return len(_occurrence_dates_in_range(booking, start, end))
+
 
 ROOM_THUMB = {
     '406-3':   'images/rooms/406-3.jpg',
@@ -238,8 +255,14 @@ def book_room(request):
 
             # Validate fields
             if purpose_type == 'TEACHING':
-                if not request.POST.get('courseId') or not request.POST.get('courseName'):
-                    raise ValueError('กรุณาระบุรหัสวิชาและชื่อวิชา')
+                program = request.POST.get('program', '').strip()
+                valid_programs = {value for value, _ in Booking.PROGRAM_CHOICES}
+                if (
+                    not request.POST.get('courseId', '').strip()
+                    or not request.POST.get('courseName', '').strip()
+                    or program not in valid_programs
+                ):
+                    raise ValueError('กรุณาระบุรหัสวิชา ชื่อวิชา และหลักสูตร')
             else:
                 if not request.POST.get('topic'):
                     raise ValueError('กรุณาระบุชื่อเรื่อง/หัวข้ออบรม')
@@ -269,11 +292,11 @@ def book_room(request):
             booking = Booking.objects.create(
                 requester=request.user, room=room,
                 purpose_type=purpose_type,
-                course_id=request.POST.get('courseId') or None,
-                course_name=request.POST.get('courseName') or None,
-                program=request.POST.get('program') or None,
-                section=request.POST.get('section') or None,
-                topic=request.POST.get('topic') or None,
+                course_id=request.POST.get('courseId', '').strip() or None,
+                course_name=request.POST.get('courseName', '').strip() or None,
+                program=request.POST.get('program', '').strip() or None,
+                section=request.POST.get('section', '').strip() or None,
+                topic=request.POST.get('topic', '').strip() or None,
                 start_date=start_date, end_date=end_date,
                 days_of_week=days_of_week,
                 start_time=start_time, end_time=end_time,
@@ -467,6 +490,7 @@ def calendar_view(request):
         'prev_month': prev_month,
         'next_month': next_month,
         'today_month': date.today().strftime('%Y-%m'),
+        'today': date.today().isoformat(),
         'all_rooms': all_rooms,
         'room_filter': room_filter,
     })
@@ -1328,8 +1352,8 @@ def admin_reports(request):
     max_count = 1
     for room in rooms:
         bks = approved.filter(room=room)
-        hours = sum((b.end_time.hour - b.start_time.hour) + (b.end_time.minute - b.start_time.minute) / 60 for b in bks)
-        count = bks.count()
+        count = sum(_occurrence_count_in_range(b, start, end) for b in bks)
+        hours = sum(_booking_duration_hours(b) * _occurrence_count_in_range(b, start, end) for b in bks)
         max_count = max(max_count, count)
         by_room.append({'code': room.code, 'name': room.name, 'count': count, 'hours': round(hours, 1),
                         'utilization': round(hours / total_slots * 100, 1) if total_slots > 0 else 0})
@@ -1337,8 +1361,8 @@ def admin_reports(request):
     for r in by_room:
         r['bar_width'] = round(r['count'] / max_count * 100) if max_count > 0 else 0
 
-    teaching_count = approved.filter(purpose_type='TEACHING').count()
-    training_count = approved.filter(purpose_type='TRAINING').count()
+    teaching_count = sum(_occurrence_count_in_range(b, start, end) for b in approved.filter(purpose_type='TEACHING'))
+    training_count = sum(_occurrence_count_in_range(b, start, end) for b in approved.filter(purpose_type='TRAINING'))
     total_type = teaching_count + training_count
     by_type = {
         'TEACHING': teaching_count,
@@ -1358,7 +1382,7 @@ def admin_reports(request):
     by_program_raw = {}
     for b in approved.filter(purpose_type='TEACHING'):
         prog = b.get_program_display() if b.program else 'ไม่ระบุ'
-        by_program_raw[prog] = by_program_raw.get(prog, 0) + 1
+        by_program_raw[prog] = by_program_raw.get(prog, 0) + _occurrence_count_in_range(b, start, end)
 
     max_prog = max(by_program_raw.values(), default=1)
     by_program = []
@@ -1378,7 +1402,7 @@ def admin_reports(request):
 
     return render(request, 'admin_panel/reports.html', {
         'start': start_str, 'end': end_str,
-        'summary': {'total': approved.count(), 'hours': round(total_hours, 1), 'utilization': avg_util},
+        'summary': {'total': teaching_count + training_count, 'hours': round(total_hours, 1), 'utilization': avg_util},
         'by_room': by_room, 'by_type': by_type, 'by_program': by_program,
     })
 
