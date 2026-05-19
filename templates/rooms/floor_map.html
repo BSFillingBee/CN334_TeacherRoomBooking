@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}แผนผังชั้น 4{% endblock %}
 {% block content %}
-<div>
+<div class="floor-map-page">
   <div class="page-header">
     <div>
       <h1 class="page-title">แผนผังชั้น 4</h1>
@@ -10,16 +10,16 @@
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;">
-    <div class="card" style="padding:1.25rem;position:relative;">
+  <div class="floor-map-layout" style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;">
+    <div class="card floor-map-card" style="padding:1.25rem;position:relative;">
       <!-- Legend -->
-      <div style="position:absolute;top:1.5rem;right:1.5rem;z-index:10;background:var(--card);border:1px solid var(--border);padding:0.5rem 0.875rem;border-radius:0.625rem;display:flex;gap:0.875rem;font-size:0.75rem;box-shadow:var(--shadow);">
+      <div class="floor-map-legend" style="position:absolute;top:1.5rem;right:1.5rem;z-index:10;background:var(--card);border:1px solid var(--border);padding:0.5rem 0.875rem;border-radius:0.625rem;display:flex;gap:0.875rem;font-size:0.75rem;box-shadow:var(--shadow);">
         <span style="display:flex;align-items:center;gap:0.375rem;"><span style="width:10px;height:10px;border-radius:50%;background:var(--success);display:inline-block;"></span>ว่าง</span>
         <span style="display:flex;align-items:center;gap:0.375rem;"><span style="width:10px;height:10px;border-radius:50%;background:var(--warning);display:inline-block;"></span>ใช้งาน</span>
       </div>
 
       <!-- Floor plan image as base, with room markers overlaid -->
-      <div style="position:relative;width:100%;border-radius:0.75rem;overflow:hidden;">
+      <div class="floor-map-canvas" style="position:relative;width:100%;border-radius:0.75rem;overflow:hidden;">
         <img src="{% static 'images/floor_plan_4.png' %}" alt="แผนผังชั้น 4" style="width:100%;display:block;border-radius:0.75rem;">
 
         <!-- Room position markers — coordinates based on the floor plan image -->
@@ -32,10 +32,10 @@
           data-id="{{ room.id }}" data-name="{{ room.name }}" data-code="{{ room.code }}" data-cap="{{ room.capacity }}"
           style="position:absolute;border:none;cursor:pointer;background:none;padding:0;left:{{ room.mapX }}%;top:{{ room.mapY }}%;transform:translate(-50%,-50%);z-index:5;">
           <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-            <span style="position:absolute;width:28px;height:28px;border-radius:50%;background:var(--primary);opacity:0.25;animation:ping 2s ease-in-out infinite;"></span>
-            <span style="position:relative;width:28px;height:28px;border-radius:50%;background:var(--primary);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;box-shadow:0 2px 8px hsl(0,75%,28%,0.5);">{{ room.code }}</span>
+            <span class="floor-map-marker-ping" style="position:absolute;width:28px;height:28px;border-radius:50%;background:var(--primary);opacity:0.25;animation:ping 2s ease-in-out infinite;"></span>
+            <span class="floor-map-marker-dot" style="position:relative;width:28px;height:28px;border-radius:50%;background:var(--primary);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;box-shadow:0 2px 8px hsl(0,75%,28%,0.5);">{{ room.code }}</span>
           </div>
-          <div id="tooltip-{{ room.id }}" style="display:none;position:absolute;left:50%;transform:translateX(-50%);top:calc(100% + 6px);background:var(--card);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem;white-space:nowrap;z-index:20;box-shadow:var(--shadow-lg);min-width:120px;">
+          <div id="tooltip-{{ room.id }}" class="floor-map-tooltip" style="display:none;position:absolute;left:50%;transform:translateX(-50%);top:calc(100% + 6px);background:var(--card);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem;white-space:nowrap;z-index:20;box-shadow:var(--shadow-lg);min-width:120px;">
             <div style="font-weight:700;font-size:0.78rem;">{{ room.code }}</div>
             <div style="font-size:0.72rem;color:var(--fg);">{{ room.name }}</div>
             <div style="font-size:0.7rem;color:var(--muted-fg);">{{ room.capacity }} คน · {{ room.get_room_type_display }}</div>
@@ -46,20 +46,20 @@
     </div>
 
     <!-- Room list panel -->
-    <div class="card" style="padding:1.5rem;height:fit-content;position:sticky;top:1.5rem;" id="roomPanel">
+    <div class="card floor-map-room-panel" style="padding:1.5rem;height:fit-content;position:sticky;top:1.5rem;" id="roomPanel">
       <h3 style="font-weight:700;margin-bottom:1rem;">ห้องทั้งหมด</h3>
-      <div style="display:flex;flex-direction:column;gap:0.375rem;">
+      <div class="floor-map-room-list" style="display:flex;flex-direction:column;gap:0.375rem;">
         {% for room in rooms %}
-        <a href="{% url 'room_detail' room.id %}"
+        <a class="floor-map-room-link" href="{% url 'room_detail' room.id %}"
            onmouseover="showRoom('{{ room.id }}')" onmouseout="hideRoom()"
            style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;border-radius:0.5rem;transition:var(--transition);border:1px solid transparent;"
            onmouseover="this.style.background='var(--muted)';this.style.borderColor='var(--border)';showRoom('{{ room.id }}')"
            onmouseout="this.style.background='transparent';this.style.borderColor='transparent';hideRoom()">
           <span style="font-size:0.875rem;">
-            <span style="font-family:monospace;font-weight:700;color:var(--primary);">{{ room.code }}</span>
-            <span style="color:var(--fg);margin-left:0.5rem;">{{ room.name }}</span>
+            <span class="floor-map-room-code" style="font-family:monospace;font-weight:700;color:var(--primary);">{{ room.code }}</span>
+            <span class="floor-map-room-name" style="color:var(--fg);margin-left:0.5rem;">{{ room.name }}</span>
           </span>
-          <span style="font-size:0.72rem;color:var(--muted-fg);">{{ room.capacity }}คน</span>
+          <span class="floor-map-room-capacity" style="font-size:0.72rem;color:var(--muted-fg);">{{ room.capacity }}คน</span>
         </a>
         {% endfor %}
       </div>
@@ -78,5 +78,14 @@ function showRoom(id) {
 function hideRoom() {
   document.querySelectorAll('[id^="tooltip-"]').forEach(el => el.style.display = 'none');
 }
+function centerFloorMapOnMobile() {
+  if (window.innerWidth > 768) return;
+  var card = document.querySelector('.floor-map-card');
+  var canvas = document.querySelector('.floor-map-canvas');
+  if (!card || !canvas) return;
+  card.scrollLeft = Math.max(0, (canvas.scrollWidth - card.clientWidth) / 2);
+}
+window.addEventListener('load', centerFloorMapOnMobile);
+window.addEventListener('resize', centerFloorMapOnMobile);
 </script>
 {% endblock %}

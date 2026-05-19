@@ -1,5 +1,41 @@
 {% extends "base.html" %}
 {% block title %}จัดการผู้ใช้งาน{% endblock %}
+{% block body_class %}admin-panel-page admin-users-page{% endblock %}
+{% block extra_css %}
+<style>
+.admin-users-search {
+  display:flex;
+  gap:0.75rem;
+  align-items:center;
+  margin-bottom:1.25rem;
+}
+.admin-users-search-field {
+  position:relative;
+  flex:1;
+  min-width:0;
+}
+.admin-users-search-field svg {
+  position:absolute;
+  left:0.85rem;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--muted-fg);
+  pointer-events:none;
+}
+.admin-users-search-field input { padding-left:2.6rem; }
+@media (max-width: 768px) {
+  .admin-users-page .content { padding:1rem; }
+  .admin-users-search {
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .admin-users-search .btn {
+    justify-content:center;
+    width:100%;
+  }
+}
+</style>
+{% endblock %}
 {% block content %}
 <div>
   <div style="display:flex;align-items:center;gap:0.875rem;margin-bottom:1.5rem;">
@@ -11,6 +47,17 @@
       <p class="page-sub">กำหนดสิทธิ์ Lecturer / Admin</p>
     </div>
   </div>
+
+  <form method="get" class="admin-users-search">
+    <div class="admin-users-search-field">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" name="q" value="{{ q }}" placeholder="ค้นหาชื่อ, username หรือ email">
+    </div>
+    <button type="submit" class="btn btn-primary">ค้นหา</button>
+    {% if q %}
+    <a href="{% url 'admin_users' %}" class="btn btn-outline">ล้าง</a>
+    {% endif %}
+  </form>
 
   <div class="card" style="overflow:hidden;">
     {% if users %}
@@ -43,7 +90,11 @@
       {% endfor %}
     </div>
     {% else %}
+    {% if q %}
+    <div style="padding:3rem;text-align:center;color:var(--muted-fg);">ไม่พบผู้ใช้งานที่ตรงกับ "{{ q }}"</div>
+    {% else %}
     <div style="padding:3rem;text-align:center;color:var(--muted-fg);">ยังไม่มีผู้ใช้ในระบบ</div>
+    {% endif %}
     {% endif %}
   </div>
 </div>

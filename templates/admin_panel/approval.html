@@ -1,8 +1,32 @@
 {% extends "base.html" %}
 {% block title %}อนุมัติการจอง{% endblock %}
+{% block body_class %}admin-panel-page{% endblock %}
+{% block extra_css %}
+<style>
+.admin-approval-shell { display:flex; flex-direction:column; gap:1.5rem; }
+.admin-approval-header { display:flex; align-items:center; gap:0.875rem; }
+.admin-approval-stats { margin-bottom:0; }
+@media (max-width: 768px) {
+  .admin-panel-page .content { padding:1rem; }
+  .admin-approval-shell { gap:1rem; }
+  .admin-approval-header { align-items:flex-start; gap:0.8rem; margin-bottom:0; }
+  .admin-approval-header .icon-box { width:48px; height:48px; border-radius:0.75rem; }
+  .admin-approval-header .page-title { font-size:1.9rem; line-height:1.1; }
+  .admin-approval-header .page-sub { font-size:0.92rem; margin-top:0.45rem; }
+  .admin-panel-page .admin-approval-stats { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.9rem; }
+  .admin-panel-page .admin-approval-stats .stat-card { padding:1.25rem 1rem; min-height:7.6rem; }
+  .admin-panel-page .admin-approval-stats .stat-label { font-size:0.88rem; }
+  .admin-panel-page .admin-approval-stats .stat-value { font-size:2rem; line-height:1.1; }
+}
+@media (max-width: 380px) {
+  .admin-panel-page .admin-approval-stats { gap:0.75rem; }
+  .admin-panel-page .admin-approval-stats .stat-card { padding:1rem 0.85rem; }
+}
+</style>
+{% endblock %}
 {% block content %}
-<div>
-  <div style="display:flex;align-items:center;gap:0.875rem;margin-bottom:1.5rem;">
+<div class="admin-approval-shell">
+  <div class="admin-approval-header">
     <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
     <div>
       <h1 class="page-title">อนุมัติการจอง</h1>
@@ -11,7 +35,7 @@
   </div>
 
   <!-- Stats -->
-  <div class="grid grid-4" style="margin-bottom:1.5rem;">
+  <div class="grid grid-4 admin-approval-stats">
     {% for s in stats %}
     <div class="card stat-card"><div class="stat-label">{{ s.label }}</div><div class="stat-value">{{ s.value }}</div></div>
     {% endfor %}

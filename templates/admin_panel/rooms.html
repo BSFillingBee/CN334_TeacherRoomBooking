@@ -1,8 +1,88 @@
 {% extends "base.html" %}
 {% block title %}จัดการห้องประชุม{% endblock %}
+{% block body_class %}admin-panel-page admin-rooms-page{% endblock %}
+{% block extra_css %}
+<style>
+.admin-rooms-header { align-items:center; }
+.admin-rooms-table-card { overflow:hidden; }
+.admin-rooms-actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+.admin-room-modal { z-index:1200; }
+.admin-room-modal-card { width:100%; padding:1.5rem; margin:1rem; }
+@media (max-width: 768px) {
+  .admin-rooms-page .content { padding:1rem; }
+  .admin-rooms-header { align-items:flex-start; gap:1rem; }
+  .admin-rooms-header .page-title { font-size:1.9rem; line-height:1.1; }
+  .admin-rooms-header .page-sub { font-size:0.92rem; margin-top:0.45rem; }
+  .admin-rooms-header .btn { align-self:flex-start; min-height:2.75rem; }
+  .admin-rooms-table-card { overflow:visible; border:0; background:transparent; box-shadow:none; }
+  .admin-rooms-table-card table,
+  .admin-rooms-table-card tbody,
+  .admin-rooms-table-card tr,
+  .admin-rooms-table-card td { display:block; width:100%; }
+  .admin-rooms-table-card thead { display:none; }
+  .admin-rooms-table-card tr {
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:0.75rem;
+    box-shadow:var(--shadow);
+    margin-bottom:0.9rem;
+    padding:1rem;
+  }
+  .admin-rooms-table-card td {
+    border:0;
+    padding:0.35rem 0;
+    font-size:0.95rem;
+  }
+  .admin-rooms-table-card td::before {
+    content:attr(data-label);
+    display:block;
+    color:var(--muted-fg);
+    font-size:0.78rem;
+    margin-bottom:0.1rem;
+  }
+  .admin-rooms-table-card td:first-child {
+    padding-top:0;
+    font-size:1.15rem;
+  }
+  .admin-rooms-actions {
+    display:grid !important;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:0.6rem;
+    padding-top:0.8rem !important;
+  }
+  .admin-rooms-actions::before { grid-column:1 / -1; }
+  .admin-rooms-actions .btn,
+  .admin-rooms-actions form,
+  .admin-rooms-actions form .btn { width:100%; }
+  .admin-rooms-actions .btn {
+    justify-content:center;
+    min-height:2.6rem;
+  }
+  .admin-room-modal {
+    align-items:flex-start !important;
+    justify-content:center !important;
+    overflow-y:auto;
+    padding:calc(56px + 1rem) 1rem 1rem;
+  }
+  .admin-room-modal-card {
+    margin:0;
+    max-width:100% !important;
+    max-height:none !important;
+  }
+  .admin-room-modal-card .grid-2 {
+    grid-template-columns:1fr;
+  }
+  .admin-room-modal-card input,
+  .admin-room-modal-card select,
+  .admin-room-modal-card textarea {
+    font-size:16px;
+  }
+}
+</style>
+{% endblock %}
 {% block content %}
 <div>
-  <div class="page-header">
+  <div class="page-header admin-rooms-header">
     <div><h1 class="page-title">จัดการห้องประชุม</h1><p class="page-sub">เพิ่ม/แก้ไข ข้อมูลห้องประชุม</p></div>
     <button onclick="document.getElementById('addRoomModal').style.display='flex'" class="btn btn-primary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -10,27 +90,27 @@
     </button>
   </div>
 
-  <div class="card" style="overflow:hidden;">
+  <div class="card admin-rooms-table-card">
     <table>
       <thead><tr><th>รหัส</th><th>ห้อง</th><th>ความจุ</th><th>ประเภท</th><th>สถานะ</th><th></th></tr></thead>
       <tbody>
         {% for room in rooms %}
         <tr>
-          <td><span style="font-family:monospace;font-weight:700;color:var(--primary);">{{ room.code }}</span></td>
-          <td><div style="font-weight:600;">{{ room.name }}</div></td>
-          <td>
+          <td data-label="รหัส"><span style="font-family:monospace;font-weight:700;color:var(--primary);">{{ room.code }}</span></td>
+          <td data-label="ห้อง"><div style="font-weight:600;">{{ room.name }}</div></td>
+          <td data-label="ความจุ">
             <span style="display:inline-flex;align-items:center;gap:0.35rem;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               {{ room.capacity }}
             </span>
           </td>
-          <td>{{ room.get_room_type_display }}</td>
-          <td>
+          <td data-label="ประเภท">{{ room.get_room_type_display }}</td>
+          <td data-label="สถานะ">
             <span class="badge {% if room.is_active %}badge-active{% else %}badge-cancelled{% endif %}">
               {% if room.is_active %}เปิดใช้งาน{% else %}ปิดใช้งาน{% endif %}
             </span>
           </td>
-          <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <td class="admin-rooms-actions" data-label="จัดการ">
             <button type="button" onclick="openEditModal('{{ room.id }}','{{ room.code }}','{{ room.name }}','{{ room.capacity }}','{{ room.room_type }}','{{ room.equipment|default:'' }}')" class="btn btn-outline btn-sm">แก้ไข</button>
             <button type="button" onclick="openImageModal('{{ room.id }}','{{ room.code }}',{{ room.images_json }})" class="btn btn-outline btn-sm">รูปภาพ</button>
             <form method="post" action="{% url 'toggle_room' room.id %}">
@@ -52,8 +132,8 @@
 </div>
 
 <!-- Add Room Modal -->
-<div id="addRoomModal" style="display:none;position:fixed;inset:0;background:hsl(0,0%,0%,0.5);z-index:100;align-items:center;justify-content:center;">
-  <div class="card" style="width:100%;max-width:480px;padding:1.5rem;margin:1rem;">
+<div id="addRoomModal" class="admin-room-modal" style="display:none;position:fixed;inset:0;background:hsl(0,0%,0%,0.5);align-items:center;justify-content:center;">
+  <div class="card admin-room-modal-card" style="max-width:480px;">
     <h2 style="font-weight:700;margin-bottom:1.25rem;">เพิ่มห้องใหม่</h2>
     <form method="post" action="{% url 'add_room' %}">
       {% csrf_token %}
@@ -79,8 +159,8 @@
 </div>
 
 <!-- Edit Room Modal -->
-<div id="editRoomModal" style="display:none;position:fixed;inset:0;background:hsl(0,0%,0%,0.5);z-index:100;align-items:center;justify-content:center;">
-  <div class="card" style="width:100%;max-width:480px;padding:1.5rem;margin:1rem;">
+<div id="editRoomModal" class="admin-room-modal" style="display:none;position:fixed;inset:0;background:hsl(0,0%,0%,0.5);align-items:center;justify-content:center;">
+  <div class="card admin-room-modal-card" style="max-width:480px;">
     <h2 style="font-weight:700;margin-bottom:1.25rem;">แก้ไขห้อง <span id="editRoomCode"></span></h2>
     <form method="post" id="editRoomForm">
       {% csrf_token %}
@@ -108,8 +188,8 @@
 </div>
 
 <!-- Upload Image Modal -->
-<div id="imageModal" style="display:none;position:fixed;inset:0;background:hsl(0,0%,0%,0.5);z-index:100;align-items:center;justify-content:center;">
-  <div class="card" style="width:100%;max-width:500px;padding:1.5rem;margin:1rem;max-height:90vh;overflow-y:auto;">
+<div id="imageModal" class="admin-room-modal" style="display:none;position:fixed;inset:0;background:hsl(0,0%,0%,0.5);align-items:center;justify-content:center;">
+  <div class="card admin-room-modal-card" style="max-width:500px;max-height:90vh;overflow-y:auto;">
     <h2 style="font-weight:700;margin-bottom:1.25rem;">รูปภาพห้อง <span id="imageRoomCode"></span></h2>
 
     <!-- รูปปัจจุบัน -->
@@ -132,6 +212,18 @@
 
 {% block extra_js %}
 <script>
+function resolveRoomImageSrc(src) {
+  if (!src) return '';
+  if (src.startsWith('/') || src.startsWith('http://') || src.startsWith('https://')) return src;
+  return '/static/' + src;
+}
+
+function showRoomModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.style.display = 'flex';
+}
+
 function openEditModal(id, code, name, cap, type, equipment) {
   document.getElementById('editRoomCode').textContent = code;
   document.getElementById('editRoomName').value = name;
@@ -139,7 +231,7 @@ function openEditModal(id, code, name, cap, type, equipment) {
   document.getElementById('editRoomType').value = type;
   document.getElementById('editRoomEquipment').value = equipment;
   document.getElementById('editRoomForm').action = '/admin-panel/rooms/' + id + '/edit/';
-  document.getElementById('editRoomModal').style.display = 'flex';
+  showRoomModal('editRoomModal');
 }
 
 function openImageModal(id, code, images) {
@@ -152,8 +244,9 @@ function openImageModal(id, code, images) {
     let html = '<div style="margin-bottom:0.5rem;font-size:0.85rem;font-weight:600;color:var(--muted-fg);">รูปปัจจุบัน (' + images.length + ' รูป)</div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">';
     images.forEach(function(src, i) {
+      const resolvedSrc = resolveRoomImageSrc(src);
       html += '<div style="position:relative;">';
-      html += '<img src="' + src + '" style="width:80px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--border);">';
+      html += '<img src="' + resolvedSrc + '" style="width:80px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--border);">';
       html += '<form method="post" action="/admin-panel/rooms/' + id + '/image/delete/" style="display:inline;">';
       html += '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCookie("csrftoken") + '">';
       html += '<input type="hidden" name="image_index" value="' + i + '">';
@@ -167,7 +260,7 @@ function openImageModal(id, code, images) {
     container.innerHTML = '<p style="font-size:0.85rem;color:var(--muted-fg);margin-bottom:0.75rem;">ยังไม่มีรูป</p>';
   }
 
-  document.getElementById('imageModal').style.display = 'flex';
+  showRoomModal('imageModal');
 }
 
 function getCookie(name) {

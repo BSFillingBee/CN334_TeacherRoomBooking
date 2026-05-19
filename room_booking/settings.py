@@ -156,7 +156,7 @@ DEFAULT_FROM_EMAIL = f"Room Booking System <{EMAIL_HOST_USER}>"
 # TU REST API Settings
 TU_API_URL = "https://restapi.tu.ac.th/api/v1/auth/Ad/verify"
 TU_APP_KEY = os.getenv('TU_APP_KEY', 'TO_BE_CONFIGURED')
-MOCK_API = env_bool('MOCK_API', False)
+MOCK_API = env_bool('MOCK_API', True)
 BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
 
 # AI booking assistant
@@ -164,9 +164,9 @@ AI_API_KEY = os.getenv('AI_API_KEY', '')
 AI_API_BASE = os.getenv('AI_API_BASE', 'https://generativelanguage.googleapis.com/v1beta/openai')
 AI_MODEL = os.getenv('AI_MODEL', 'gemini-3.1-flash-lite')
 
-SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
-SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', True)
-CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', True)
+SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
+SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', False)
+CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', False)
 # Auth redirect
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'

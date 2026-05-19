@@ -110,24 +110,24 @@ ROOM_EQUIPMENT = {
 }
 
 def get_room_thumb(room):
-    if room.code in ROOM_THUMB:
-        return ROOM_THUMB[room.code]
     if room.image:
         import json
         try:
             imgs = json.loads(room.image)
+            ROOM_IMAGES[room.code] = imgs
             if imgs:
-                ROOM_IMAGES[room.code] = imgs
                 ROOM_THUMB[room.code] = imgs[0]
-                return imgs[0]
+            else:
+                ROOM_THUMB.pop(room.code, None)
+            return imgs[0] if imgs else ''
         except (json.JSONDecodeError, TypeError):
             ROOM_THUMB[room.code] = room.image
             return room.image
+    if room.code in ROOM_THUMB:
+        return ROOM_THUMB[room.code]
     return ''
 
 def get_room_images(room):
-    if room.code in ROOM_IMAGES:
-        return ROOM_IMAGES[room.code]
     if room.image:
         import json
         try:
@@ -136,6 +136,8 @@ def get_room_images(room):
             return imgs
         except (json.JSONDecodeError, TypeError):
             return [room.image]
+    if room.code in ROOM_IMAGES:
+        return ROOM_IMAGES[room.code]
     return []
 
 def get_room_equipment(room):
@@ -1274,7 +1276,7 @@ def upload_room_image(request, pk):
     room = get_object_or_404(Room, pk=pk)
     imgs = request.FILES.getlist('images')
     if imgs:
-        existing = ROOM_IMAGES.get(room.code, [])
+        existing = get_room_images(room)
         new_paths = []
         for img in imgs:
             ext = os.path.splitext(img.name)[1].lower()
@@ -1298,12 +1300,17 @@ def delete_room_image(request, pk):
     import json
     room = get_object_or_404(Room, pk=pk)
     idx = int(request.POST.get('image_index', -1))
-    images = ROOM_IMAGES.get(room.code, [])
+    images = get_room_images(room)
     if 0 <= idx < len(images):
-        images.pop(idx)
+        removed = images.pop(idx)
+        if removed.startswith('/media/'):
+            from django.core.files.storage import default_storage
+            media_name = removed[len('/media/'):]
+            if default_storage.exists(media_name):
+                default_storage.delete(media_name)
         ROOM_IMAGES[room.code] = images
         ROOM_THUMB[room.code] = images[0] if images else ''
-        room.image = json.dumps(images) if images else None
+        room.image = json.dumps(images)
         room.save(update_fields=['image'])
         messages.success(request, f'ลบรูปสำเร็จ')
     return redirect('admin_rooms')
@@ -1430,8 +1437,17 @@ def reports_csv(request):
 
 @admin_required
 def admin_users(request):
-    users = User.objects.all().order_by('username')
-    return render(request, 'admin_panel/users.html', {'users': users})
+    q = request.GET.get('q', '').strip()
+    users = User.objects.all()
+    if q:
+        users = users.filter(
+            Q(username__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(email__icontains=q)
+        )
+    users = users.order_by('username')
+    return render(request, 'admin_panel/users.html', {'users': users, 'q': q})
 
 
 @admin_required

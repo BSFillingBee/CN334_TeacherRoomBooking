@@ -8,22 +8,40 @@
   <link rel="stylesheet" href="{% static 'css/main.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 
 {% if user.is_authenticated %}
+
+<!-- Mobile top bar -->
+<div class="mobile-topbar">
+  <button class="hamburger-btn" id="hamburgerBtn" aria-label="เปิดเมนู">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="mobile-topbar-title">ระบบจองห้องประชุม</div>
+</div>
+
+<!-- Overlay backdrop -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
 <!-- Sidebar -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <img class="sidebar-logo" src="{% static 'images/main-logo.png' %}" alt="TSE logo">
     <div>
       <div class="sidebar-title">ระบบจองห้องประชุม</div>
       <div class="sidebar-sub">คณะวิศวกรรมศาสตร์ มธ.</div>
     </div>
+    <!-- Close button (mobile only) -->
+    <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="ปิดเมนู">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
   </div>
 
   <nav class="sidebar-nav">
     {% if user.is_admin %}
-      <div class="sidebar-label">เมนูผู้ดูแลระบบ</div>
+      <div class="sidebar-label"></div>
       <a href="{% url 'admin_approval' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_approval' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
         <span>อนุมัติการจอง</span>
@@ -49,7 +67,7 @@
         <span>AI ผู้ช่วยดูแลระบบ</span>
       </a>
     {% else %}
-      <div class="sidebar-label">เมนูเจ้าหน้าที่</div>
+      <div class="sidebar-label"></div>
       <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         <span>แดชบอร์ด</span>
@@ -103,6 +121,40 @@
     {% block content %}{% endblock %}
   </div>
 </main>
+
+{% if user.is_authenticated %}
+<script>
+(function() {
+  var sidebar  = document.getElementById('sidebar');
+  var overlay  = document.getElementById('sidebarOverlay');
+  var hamburger = document.getElementById('hamburgerBtn');
+  var closeBtn  = document.getElementById('sidebarCloseBtn');
+
+  function openSidebar() {
+    sidebar.classList.add('open');
+    overlay.classList.add('visible');
+    document.body.classList.add('sidebar-open');
+  }
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('visible');
+    document.body.classList.remove('sidebar-open');
+  }
+
+  if (hamburger)  hamburger.addEventListener('click', openSidebar);
+  if (closeBtn)   closeBtn.addEventListener('click', closeSidebar);
+  if (overlay)    overlay.addEventListener('click', closeSidebar);
+
+  // Close on nav-item click (mobile)
+  var navItems = sidebar ? sidebar.querySelectorAll('.nav-item') : [];
+  navItems.forEach(function(item) {
+    item.addEventListener('click', function() {
+      if (window.innerWidth <= 768) closeSidebar();
+    });
+  });
+})();
+</script>
+{% endif %}
 
 {% block extra_js %}{% endblock %}
 </body>

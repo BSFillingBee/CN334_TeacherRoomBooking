@@ -12,6 +12,12 @@
 .gallery-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.5); border:none; cursor:pointer; padding:0; transition:background 0.2s; }
 .gallery-dot.active { background:#fff; }
 .equip-tag { display:inline-flex; align-items:center; gap:0.35rem; background:var(--muted); border-radius:9999px; padding:0.3rem 0.75rem; font-size:0.82rem; font-weight:500; }
+.room-detail-layout { display:grid; grid-template-columns:1fr 340px; gap:1.5rem; }
+.room-detail-sidebar-card { padding:1.5rem; position:sticky; top:1.5rem; height:max-content; overflow:hidden; }
+@media (max-width: 1024px) {
+  .room-detail-layout { grid-template-columns:1fr; }
+  .room-detail-sidebar-card { position:static; top:auto; }
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -22,7 +28,7 @@
       ห้องทั้งหมด
     </a>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem;">
+  <div class="room-detail-layout">
     <div>
       <!-- Image Gallery -->
       <div class="gallery-wrap card" style="margin-bottom:1.25rem;" id="gallery">
@@ -101,7 +107,7 @@
       </div>
     </div>
     <div>
-      <div class="card" style="padding:1.5rem;position:sticky;top:1.5rem;">
+      <div class="card room-detail-sidebar-card">
         <span class="badge" style="background:var(--grad-warm);color:var(--secondary-fg);border:none;margin-bottom:0.75rem;">ห้อง {{ room.code }}</span>
         <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:0.25rem;">{{ room.name }}</h2>
         <p style="font-size:0.85rem;color:var(--muted-fg);margin-bottom:1.25rem;">{{ room.get_room_type_display }} · {{ room.capacity }} คน</p>

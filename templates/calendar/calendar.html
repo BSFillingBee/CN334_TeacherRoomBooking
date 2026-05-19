@@ -213,17 +213,119 @@ function toDateStr(d) {
   return `${year}-${month}-${day}`;
 }
 
+function getWeekDays(start) {
+  const days = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+function getDayBlackouts(dateStr) {
+  return allBlackouts.filter(b => b.date === dateStr);
+}
+
+function getDayBookings(dateStr) {
+  return allBookings
+    .filter(b => b.date === dateStr)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+}
+
+function blackoutKey(b) {
+  return [b.title, b.room_label, b.note || ''].join('|');
+}
+
+function getBlackoutRanges(days) {
+  const byKey = {};
+  days.forEach((d, dayIndex) => {
+    getDayBlackouts(toDateStr(d)).forEach(b => {
+      const key = blackoutKey(b);
+      if (!byKey[key]) byKey[key] = { sample: b, indexes: [] };
+      byKey[key].indexes.push(dayIndex);
+    });
+  });
+
+  const ranges = [];
+  Object.values(byKey).forEach(group => {
+    const indexes = Array.from(new Set(group.indexes)).sort((a, b) => a - b);
+    let start = indexes[0];
+    let prev = indexes[0];
+    for (let i = 1; i <= indexes.length; i++) {
+      const current = indexes[i];
+      if (current === prev + 1) {
+        prev = current;
+        continue;
+      }
+      ranges.push({ start, end: prev, item: group.sample });
+      start = current;
+      prev = current;
+    }
+  });
+  return ranges;
+}
+
+function renderWeekMobile(days) {
+  let html = '<div class="calendar-week-list">';
+  days.forEach((d, i) => {
+    const dateStr = toDateStr(d);
+    const blackouts = getDayBlackouts(dateStr);
+    const bookings = getDayBookings(dateStr);
+    const isToday = d.toDateString() === new Date().toDateString();
+    html += `<div class="calendar-week-day-card">
+      <div class="calendar-week-day-head ${isToday ? 'today-col' : ''}">
+        <div>
+          <div class="calendar-week-day-title">${THAI_DAYS_SHORT[i]} ${d.getDate()}/${d.getMonth()+1}</div>
+        </div>
+        <a href="/bookings/new/?startDate=${dateStr}&endDate=${dateStr}" class="btn btn-primary btn-sm">+ จอง</a>
+      </div>
+      <div class="calendar-week-day-body">`;
+
+    if (blackouts.length > 0) {
+      const unique = {};
+      blackouts.forEach(b => { unique[blackoutKey(b)] = b; });
+      Object.values(unique).forEach(b => {
+        html += `<div class="calendar-week-mobile-event unavailable">
+          <div style="font-weight:700;">${b.title}</div>
+          <div style="font-size:0.82rem;">${b.room_label}${b.note ? ' · ' + b.note : ''}</div>
+        </div>`;
+      });
+    }
+
+    if (bookings.length > 0) {
+      bookings.forEach(b => {
+        const cls = b.status === 'approved' ? 'approved' : 'pending';
+        html += `<div class="calendar-week-mobile-event ${cls}">
+          <div class="calendar-week-mobile-time">${b.start_time}–${b.end_time}</div>
+          <div style="font-weight:700;">${b.room_code} · ${b.room_name}</div>
+          <div style="font-size:0.82rem;color:var(--muted-fg);">${b.purpose}</div>
+        </div>`;
+      });
+    }
+
+    if (blackouts.length === 0 && bookings.length === 0) {
+      html += '<div class="calendar-week-empty">ว่างทั้งวัน</div>';
+    }
+
+    html += '</div></div>';
+  });
+  html += '</div>';
+  document.getElementById('weekGrid').innerHTML = html;
+}
+
 function renderWeek() {
   const start = getWeekStart(weekOffset);
   const end = new Date(start); end.setDate(start.getDate() + 4);
   const fmt = d => d.getDate() + '/' + (d.getMonth()+1);
   document.getElementById('weekLabel').textContent = 'สัปดาห์ ' + fmt(start) + ' – ' + fmt(end);
+  const days = getWeekDays(start);
+  if (window.innerWidth <= 768) {
+    renderWeekMobile(days);
+    return;
+  }
   const hours = [];
   for (let h = 8; h <= 17; h++) hours.push(h);
-  const days = [];
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(start); d.setDate(start.getDate()+i); days.push(d);
-  }
   let html = '<div class="week-time-cell" style="border-left:none;background:var(--muted);"></div>';
   days.forEach((d,i) => {
     const isToday = d.toDateString() === new Date().toDateString();
@@ -234,17 +336,26 @@ function renderWeek() {
       <a href="/bookings/new/?startDate=${dateStr}&endDate=${dateStr}" style="display:inline-block;margin-top:4px;font-size:0.65rem;background:var(--primary);color:#fff;border-radius:9999px;padding:1px 8px;text-decoration:none;">+ จอง</a>
     </div>`;
   });
+  const blackoutRanges = getBlackoutRanges(days);
+  if (blackoutRanges.length > 0) {
+    html += '<div class="week-all-day-row"><div class="week-all-day-grid">';
+    html += '<div class="week-all-day-label">ทั้งวัน</div>';
+    blackoutRanges.forEach(range => {
+      const startCol = range.start + 2;
+      const endCol = range.end + 3;
+      const b = range.item;
+      html += `<div class="week-all-day-event" style="grid-column:${startCol} / ${endCol};" title="${b.title}">
+        ${b.title} · ${b.room_label}
+      </div>`;
+    });
+    html += '</div></div>';
+  }
   hours.forEach(h => {
     html += `<div class="week-time-cell">${h}:00</div>`;
     days.forEach(d => {
       const dateStr = toDateStr(d);
       const isToday = d.toDateString() === new Date().toDateString();
       const blackouts = allBlackouts.filter(b => b.date === dateStr);
-      if (blackouts.length > 0) {
-        let cellHtml = blackouts.map(b => `<div class="week-event unavailable" title="${b.title}">${b.title}</div>`).join('');
-        html += `<div class="week-slot ${isToday?'today-col':''}">${cellHtml}</div>`;
-        return;
-      }
       const bks = allBookings.filter(b => {
         if (b.date !== dateStr) return false;
         const bStart = parseInt(b.start_time.split(':')[0]);
@@ -258,7 +369,7 @@ function renderWeek() {
 ${b.room_code}
         </div>`;
       }).join('');
-      html += `<div class="week-slot ${isToday?'today-col':''}">${cellHtml}</div>`;
+      html += `<div class="week-slot ${isToday?'today-col':''} ${blackouts.length ? 'has-all-day-unavailable' : ''}">${cellHtml}</div>`;
     });
   });
   document.getElementById('weekGrid').innerHTML = html;
@@ -274,5 +385,8 @@ function switchView(view) {
   document.getElementById('btnWeek').className = 'btn btn-sm ' + (view==='week'?'btn-primary':'btn-outline');
   if (view === 'week') renderWeek();
 }
+window.addEventListener('resize', function() {
+  if (document.getElementById('weekView').style.display !== 'none') renderWeek();
+});
 </script>
 {% endblock %}
