@@ -27,6 +27,11 @@ urlpatterns = [
     # Admin
     path('admin-panel/', v.admin_approval, name='admin_approval'),
     path('admin-panel/bookings/<int:pk>/review/', v.review_booking, name='review_booking'),
+    path('admin-panel/announcements/', v.admin_announcements, name='admin_announcements'),
+    path('admin-panel/announcements/add/', v.add_announcement, name='add_announcement'),
+    path('admin-panel/announcements/<int:pk>/edit/', v.edit_announcement, name='edit_announcement'),
+    path('admin-panel/announcements/<int:pk>/toggle/', v.toggle_announcement, name='toggle_announcement'),
+    path('admin-panel/announcements/<int:pk>/delete/', v.delete_announcement, name='delete_announcement'),
     path('admin-panel/rooms/', v.admin_rooms, name='admin_rooms'),
     path('admin-panel/rooms/add/', v.add_room, name='add_room'),
     path('admin-panel/rooms/<int:pk>/toggle/', v.toggle_room, name='toggle_room'),

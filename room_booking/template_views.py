@@ -14,7 +14,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from bookings.models import Booking
+from bookings.models import Booking, Announcement
 from bookings.utils import send_booking_notification_to_admin, send_booking_status_update, send_cancellation_notice_to_admin
 from rooms.models import Room, BlackoutPeriod
 from django.conf import settings
@@ -144,6 +144,14 @@ def get_room_equipment(room):
     return ROOM_EQUIPMENT.get(room.code, [])
 
 
+def _create_room_announcement(title, body, user=None):
+    Announcement.objects.create(
+        title=title,
+        body=body,
+        created_by=user if getattr(user, 'is_authenticated', False) else None,
+    )
+
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -188,6 +196,7 @@ def dashboard(request):
     my_bookings = Booking.objects.filter(requester=request.user)
     pending_count = my_bookings.filter(status='PENDING').count()
     rooms_count = Room.objects.filter(is_active=True).count()
+    announcements = Announcement.objects.filter(is_active=True).select_related('created_by')[:5]
 
     stats = [
         {'label': 'การจองของฉัน', 'value': my_bookings.count()},
@@ -200,6 +209,7 @@ def dashboard(request):
         'today_bookings': today_bookings[:5],
         'today_bookings_count': today_bookings.count(),
         'stats': stats,
+        'announcements': announcements,
     })
 
 
@@ -1188,6 +1198,69 @@ def admin_approval(request):
 
 
 @admin_required
+def admin_announcements(request):
+    announcements = Announcement.objects.select_related('created_by').order_by('-created_at')
+    active_announcements = announcements.filter(is_active=True)[:5]
+    return render(request, 'admin_panel/announcements.html', {
+        'announcements': announcements,
+        'active_announcements': active_announcements,
+    })
+
+
+@admin_required
+@require_POST
+def add_announcement(request):
+    title = request.POST.get('title', '').strip()
+    body = request.POST.get('body', '').strip()
+    if not title or not body:
+        messages.error(request, 'กรุณาระบุหัวข้อและรายละเอียดประกาศ')
+        return redirect('admin_announcements')
+    Announcement.objects.create(
+        title=title,
+        body=body,
+        is_active=True,
+        created_by=request.user,
+    )
+    messages.success(request, 'เพิ่มประกาศสำเร็จ')
+    return redirect('admin_announcements')
+
+
+@admin_required
+@require_POST
+def edit_announcement(request, pk):
+    announcement = get_object_or_404(Announcement, pk=pk)
+    title = request.POST.get('title', '').strip()
+    body = request.POST.get('body', '').strip()
+    if not title or not body:
+        messages.error(request, 'กรุณาระบุหัวข้อและรายละเอียดประกาศ')
+        return redirect('admin_announcements')
+    announcement.title = title
+    announcement.body = body
+    announcement.save(update_fields=['title', 'body', 'updated_at'])
+    messages.success(request, 'แก้ไขประกาศสำเร็จ')
+    return redirect('admin_announcements')
+
+
+@admin_required
+@require_POST
+def toggle_announcement(request, pk):
+    announcement = get_object_or_404(Announcement, pk=pk)
+    announcement.is_active = not announcement.is_active
+    announcement.save(update_fields=['is_active', 'updated_at'])
+    messages.success(request, 'อัปเดตสถานะประกาศสำเร็จ')
+    return redirect('admin_announcements')
+
+
+@admin_required
+@require_POST
+def delete_announcement(request, pk):
+    announcement = get_object_or_404(Announcement, pk=pk)
+    announcement.delete()
+    messages.success(request, 'ลบประกาศสำเร็จ')
+    return redirect('admin_announcements')
+
+
+@admin_required
 @require_POST
 def review_booking(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
@@ -1232,6 +1305,12 @@ def add_room(request):
         })
         if created and equipment:
             ROOM_EQUIPMENT[code] = [e.strip() for e in equipment.split(',') if e.strip()]
+        if created:
+            _create_room_announcement(
+                f'เพิ่มห้อง {room.code}',
+                f'เปิดให้ใช้งานห้อง {room.code} {room.name} ความจุ {room.capacity} คนแล้ว',
+                request.user,
+            )
         messages.success(request, f'เพิ่มห้อง {code} สำเร็จ')
     return redirect('admin_rooms')
 
@@ -1240,6 +1319,9 @@ def add_room(request):
 @require_POST
 def edit_room(request, pk):
     room = get_object_or_404(Room, pk=pk)
+    old_name = room.name
+    old_capacity = room.capacity
+    old_room_type = room.get_room_type_display()
     name = request.POST.get('name', '').strip()
     capacity = request.POST.get('capacity', '').strip()
     room_type = request.POST.get('roomType', room.room_type)
@@ -1252,6 +1334,21 @@ def edit_room(request, pk):
     room.save()
     if equipment:
         ROOM_EQUIPMENT[room.code] = [e.strip() for e in equipment.split(',') if e.strip()]
+    changes = []
+    if old_name != room.name:
+        changes.append(f'ชื่อห้องจาก {old_name} เป็น {room.name}')
+    if old_capacity != room.capacity:
+        changes.append(f'ความจุจาก {old_capacity} เป็น {room.capacity} คน')
+    if old_room_type != room.get_room_type_display():
+        changes.append(f'ประเภทจาก {old_room_type} เป็น {room.get_room_type_display()}')
+    if equipment:
+        changes.append('อัปเดตอุปกรณ์ในห้อง')
+    if changes:
+        _create_room_announcement(
+            f'แก้ไขข้อมูลห้อง {room.code}',
+            f'ห้อง {room.code} มีการปรับปรุงข้อมูล: ' + ', '.join(changes),
+            request.user,
+        )
     messages.success(request, f'แก้ไขห้อง {room.code} สำเร็จ')
     return redirect('admin_rooms')
 
@@ -1261,10 +1358,16 @@ def edit_room(request, pk):
 def delete_room(request, pk):
     room = get_object_or_404(Room, pk=pk)
     code = room.code
+    name = room.name
     room.delete()
     ROOM_THUMB.pop(code, None)
     ROOM_IMAGES.pop(code, None)
     ROOM_EQUIPMENT.pop(code, None)
+    _create_room_announcement(
+        f'นำห้อง {code} ออกจากระบบ',
+        f'ห้อง {code} {name} ถูกนำออกจากระบบจองแล้ว',
+        request.user,
+    )
     messages.success(request, f'ลบห้อง {code} สำเร็จ')
     return redirect('admin_rooms')
 
@@ -1322,6 +1425,12 @@ def toggle_room(request, pk):
     room = get_object_or_404(Room, pk=pk)
     room.is_active = not room.is_active
     room.save(update_fields=['is_active'])
+    status_text = 'เปิดให้ใช้งาน' if room.is_active else 'ปิดใช้งานชั่วคราว'
+    _create_room_announcement(
+        f'{status_text}ห้อง {room.code}',
+        f'ห้อง {room.code} {room.name} ถูก{status_text}ในระบบจอง',
+        request.user,
+    )
     messages.success(request, f'{"เปิด" if room.is_active else "ปิด"}ใช้งานห้อง {room.code} แล้ว')
     return redirect('admin_rooms')
 

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}จัดการประกาศ{% endblock %}
+{% block body_class %}admin-panel-page admin-announcements-page{% endblock %}
+
+{% block extra_css %}
+<style>
+.announcements-layout { display:grid; grid-template-columns:minmax(0, 1fr) 360px; gap:1.5rem; align-items:start; }
+.announcement-side { position:sticky; top:1.5rem; display:flex; flex-direction:column; gap:1rem; }
+.announcement-form-card,
+.announcement-preview-card { padding:1.5rem; }
+.announcement-preview-card { background:var(--grad-warm); overflow:hidden; }
+.announcement-preview-list { display:flex; flex-direction:column; gap:0.75rem; font-size:0.85rem; color:var(--secondary-fg); }
+.announcement-preview-item { padding:0.75rem; background:hsl(0,0%,100%,0.35); border-radius:0.5rem; backdrop-filter:blur(4px); }
+.announcement-list { display:flex; flex-direction:column; gap:0.9rem; }
+.announcement-item { padding:1.25rem; }
+.announcement-actions { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:1rem; }
+.announcement-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1200; align-items:center; justify-content:center; padding:1rem; }
+.announcement-modal-card { width:100%; max-width:540px; padding:1.5rem; }
+@media (max-width: 980px) {
+  .announcements-layout { grid-template-columns:1fr; }
+  .announcement-side { position:static; }
+}
+@media (max-width: 768px) {
+  .admin-announcements-page .content { padding:1rem; }
+  .announcement-actions .btn,
+  .announcement-actions form { width:100%; }
+  .announcement-actions form .btn { width:100%; justify-content:center; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">จัดการประกาศ</h1>
+      <p class="page-sub">เพิ่ม แก้ไข และเปิด/ปิดประกาศที่แสดงบน Dashboard ของผู้ใช้</p>
+    </div>
+  </div>
+
+  <div class="announcements-layout">
+    <div class="announcement-list">
+      {% if announcements %}
+        {% for announcement in announcements %}
+        <div class="card announcement-item">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
+            <div style="min-width:0;">
+              <h2 style="font-size:1.05rem;font-weight:700;margin-bottom:0.35rem;">{{ announcement.title }}</h2>
+              <div style="color:var(--muted-fg);font-size:0.9rem;white-space:pre-line;">{{ announcement.body }}</div>
+            </div>
+            <span class="badge {% if announcement.is_active %}badge-active{% else %}badge-cancelled{% endif %}">
+              {% if announcement.is_active %}แสดงอยู่{% else %}ซ่อนอยู่{% endif %}
+            </span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted-fg);margin-top:0.75rem;">
+            สร้างเมื่อ {{ announcement.created_at|date:"d/m/Y H:i" }}
+            {% if announcement.created_by %} โดย {{ announcement.created_by.get_full_name|default:announcement.created_by.username }}{% endif %}
+          </div>
+          <div class="announcement-actions">
+            <button type="button"
+              class="btn btn-outline btn-sm"
+              onclick="openEditAnnouncement('{{ announcement.id }}','{{ announcement.title|escapejs }}','{{ announcement.body|escapejs }}')">
+              แก้ไข
+            </button>
+            <form method="post" action="{% url 'toggle_announcement' announcement.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline btn-sm">
+                {% if announcement.is_active %}ซ่อนประกาศ{% else %}แสดงประกาศ{% endif %}
+              </button>
+            </form>
+            <form method="post" action="{% url 'delete_announcement' announcement.id %}" onsubmit="return confirm('ยืนยันลบประกาศนี้?')">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;">ลบ</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="card" style="padding:3rem;text-align:center;color:var(--muted-fg);">
+          <p style="font-weight:600;color:var(--fg);">ยังไม่มีประกาศ</p>
+          <p style="font-size:0.9rem;margin-top:0.25rem;">เพิ่มประกาศแรกจากฟอร์มด้านขวา</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="announcement-side">
+      <div class="card announcement-preview-card">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--secondary-fg)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <h2 style="font-size:1rem;font-weight:700;color:var(--secondary-fg);">ตัวอย่างบน Dashboard</h2>
+        </div>
+        <div class="announcement-preview-list">
+          {% for announcement in active_announcements %}
+            <div class="announcement-preview-item">
+              <div style="font-weight:600;margin-bottom:0.25rem;">{{ announcement.title }}</div>
+              <div style="font-size:0.78rem;opacity:0.7;margin-bottom:0.35rem;">{{ announcement.created_at|date:"d/m/Y H:i" }} น.</div>
+              <div style="font-size:0.9rem;opacity:0.8;white-space:pre-line;">{{ announcement.body }}</div>
+            </div>
+          {% empty %}
+            <div class="announcement-preview-item">
+              <div style="font-weight:600;margin-bottom:0.25rem;">ยังไม่มีประกาศ</div>
+              <div style="font-size:0.9rem;opacity:0.8;">ประกาศจากผู้ดูแลระบบจะแสดงที่นี่</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card announcement-form-card">
+        <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;">เพิ่มประกาศใหม่</h2>
+        <form method="post" action="{% url 'add_announcement' %}">
+          {% csrf_token %}
+          <div class="form-group" style="margin-bottom:0.875rem;">
+            <label>หัวข้อ *</label>
+            <input type="text" name="title" maxlength="200" required>
+          </div>
+          <div class="form-group" style="margin-bottom:0.875rem;">
+            <label>รายละเอียด *</label>
+            <textarea name="body" rows="5" required style="width:100%;resize:vertical;"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">เพิ่มประกาศ</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="editAnnouncementModal" class="announcement-modal">
+  <div class="card announcement-modal-card">
+    <h2 style="font-weight:700;margin-bottom:1.25rem;">แก้ไขประกาศ</h2>
+    <form method="post" id="editAnnouncementForm">
+      {% csrf_token %}
+      <div class="form-group" style="margin-bottom:0.875rem;">
+        <label>หัวข้อ *</label>
+        <input type="text" name="title" id="editAnnouncementTitle" maxlength="200" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0.875rem;">
+        <label>รายละเอียด *</label>
+        <textarea name="body" id="editAnnouncementBody" rows="5" required style="width:100%;resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('editAnnouncementModal').style.display='none'">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEditAnnouncement(id, title, body) {
+  document.getElementById('editAnnouncementTitle').value = title;
+  document.getElementById('editAnnouncementBody').value = body;
+  document.getElementById('editAnnouncementForm').action = '/admin-panel/announcements/' + id + '/edit/';
+  document.getElementById('editAnnouncementModal').style.display = 'flex';
+}
+</script>
+{% endblock %}

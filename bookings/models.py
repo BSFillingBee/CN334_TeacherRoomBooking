@@ -161,3 +161,27 @@ class Booking(models.Model):
             day_text = ', '.join(str(day) for day in days)
             parts.append(f"{day_text} {thai_months[month]} {year}")
         return ', '.join(parts)
+
+
+class Announcement(models.Model):
+    title = models.CharField(max_length=200, verbose_name='หัวข้อประกาศ')
+    body = models.TextField(verbose_name='รายละเอียด')
+    is_active = models.BooleanField(default=True, verbose_name='แสดงบน Dashboard')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='created_announcements',
+        null=True,
+        blank=True,
+        verbose_name='ผู้สร้างประกาศ',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='สร้างเมื่อ')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='แก้ไขล่าสุด')
+
+    class Meta:
+        verbose_name = 'ประกาศ'
+        verbose_name_plural = 'ประกาศ'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title

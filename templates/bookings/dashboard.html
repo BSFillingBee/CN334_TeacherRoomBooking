@@ -124,6 +124,15 @@
         <h3 style="font-weight:700;color:var(--secondary-fg);">ประกาศ</h3>
       </div>
       <div style="display:flex;flex-direction:column;gap:0.75rem;font-size:0.85rem;color:var(--secondary-fg);">
+        {% if announcements %}
+          {% for announcement in announcements %}
+          <div style="padding:0.75rem;background:hsl(0,0%,100%,0.35);border-radius:0.5rem;backdrop-filter:blur(4px);">
+            <div style="font-weight:600;margin-bottom:0.25rem;">{{ announcement.title }}</div>
+            <div style="font-size:0.78rem;opacity:0.7;margin-bottom:0.35rem;">{{ announcement.created_at|date:"d/m/Y H:i" }} น.</div>
+            <div style="font-size:0.9rem;opacity:0.8;white-space:pre-line;">{{ announcement.body }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
         <div style="padding:0.75rem;background:hsl(0,0%,100%,0.35);border-radius:0.5rem;backdrop-filter:blur(4px);">
           <div style="font-weight:600;margin-bottom:0.25rem;">ระบบเปิดใช้งานแล้ว</div>
           <div style="font-size:0.9rem;opacity:0.8;">สามารถจองห้องประชุมออนไลน์ได้แล้ว</div>
@@ -132,6 +141,7 @@
           <div style="font-weight:600;margin-bottom:0.25rem;">เปิดใช้งาน AI Booking</div>
           <div style="font-size:0.9rem;opacity:0.8;">พิมพ์ข้อความบอก AI เพื่อจองห้องอัตโนมัติ</div>
         </div>
+        {% endif %}
       </div>
     </div>
 
