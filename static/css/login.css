@@ -229,11 +229,11 @@
       .brand-name{font-size:1.15rem}
       .brand-sub{font-size:0.82rem}
       .brand-pill{
-        font-size:0.82rem;
+        font-size:1rem;
         padding:0.3rem 0.7rem;
       }
       .brand-heading{
-        font-size:1.55rem;
+        font-size:2.25rem;
         line-height:1.15;
       }
       .brand-desc{
@@ -245,7 +245,7 @@
         gap:0.625rem;
       }
       .brand-stat-label{
-        font-size:0.8rem;
+        font-size:0.92rem;
         line-height:1.35;
       }
       .brand-copy-desktop{
