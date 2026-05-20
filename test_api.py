@@ -1,10 +1,8 @@
-import os, json, requests
+import os, requests
 from django.conf import settings
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'room_booking.settings')
 django.setup()
-
-api_url = f'https://generativelanguage.googleapis.com/v1beta/models/{settings.AI_MODEL}:generateContent?key={settings.AI_API_KEY}'
 
 system_instruction = '''You are an AI assistant for ECE Thammasat's room booking system.
 ALWAYS return a SINGLE JSON object.
@@ -41,5 +39,13 @@ payload = {
         }
     }
 }
-resp = requests.post(api_url, headers={'Content-Type': 'application/json'}, json=payload)
-print(resp.json()['candidates'][0]['content']['parts'][0]['text'])
+
+
+def main():
+    api_url = f'https://generativelanguage.googleapis.com/v1beta/models/{settings.AI_MODEL}:generateContent?key={settings.AI_API_KEY}'
+    resp = requests.post(api_url, headers={'Content-Type': 'application/json'}, json=payload)
+    print(resp.json()['candidates'][0]['content']['parts'][0]['text'])
+
+
+if __name__ == '__main__':
+    main()

@@ -28,17 +28,17 @@
   .floor-map-card {
     order: 1;
     padding: 0.75rem !important;
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 
   .floor-map-canvas {
-    min-width: 640px;
-    width: 640px !important;
+    min-width: 0;
+    width: 100% !important;
     margin: 0 auto;
   }
 
   .floor-map-canvas img {
-    max-width: none;
+    max-width: 100%;
   }
 
   .floor-map-legend {
@@ -50,12 +50,12 @@
 
   .floor-map-marker-dot,
   .floor-map-marker-ping {
-    width: 24px !important;
-    height: 24px !important;
+    width: 20px !important;
+    height: 20px !important;
   }
 
   .floor-map-marker-dot {
-    font-size: 0.48rem !important;
+    font-size: 0.42rem !important;
   }
 
   .floor-map-tooltip {
