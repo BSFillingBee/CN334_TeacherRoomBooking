@@ -106,7 +106,10 @@
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
     }
-    .footer-name { font-size: 0.9rem; font-weight: 600; color: var(--sidebar-fg); }
+    .footer-name {
+      font-size: 0.9rem; font-weight: 600; color: var(--sidebar-fg);
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
     .footer-role { font-size: 0.8rem; color: hsl(48,40%,65%); }
     .logout-btn {
       margin-left: auto; background: none; border: none; cursor: pointer;

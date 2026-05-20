@@ -27,6 +27,18 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+
+    @property
+    def thai_display_name(self):
+        first_name = (self.first_name or '').strip()
+        last_name = (self.last_name or '').strip()
+        name_parts = [first_name] if first_name else []
+
+        has_thai_last_name = any('\u0e00' <= char <= '\u0e7f' for char in last_name)
+        if last_name and has_thai_last_name and not last_name.startswith('(') and last_name not in first_name:
+            name_parts.append(last_name)
+
+        return ' '.join(name_parts).strip()
     
     @property
     def is_lecturer(self):

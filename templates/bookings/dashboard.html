@@ -47,7 +47,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
           สวัสดีตอนเช้า
         </div>
-        <h1 style="font-size:2rem;font-weight:700;margin-bottom:0.375rem;color:var(--primary-fg);">{{ user.get_full_name|default:user.username }}</h1>
+        <h1 style="font-size:2rem;font-weight:700;margin-bottom:0.375rem;color:var(--primary-fg);">{{ user.thai_display_name|default:user.username }}</h1>
         <p style="opacity:0.8;font-size:0.9rem;">วันนี้มีห้องประชุม {{ today_bookings_count }} รายการที่อนุมัติแล้ว</p>
       </div>
       <div class="dashboard-hero-actions">

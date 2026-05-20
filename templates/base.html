@@ -100,11 +100,13 @@
   </nav>
 
   <div class="sidebar-footer">
-    <div class="avatar">{{ user.get_full_name|truncatechars:2|upper|default:user.username|truncatechars:2|upper }}</div>
+    {% with sidebar_name=user.thai_display_name|default:user.username %}
+    <div class="avatar">{{ sidebar_name|slice:":2"|upper }}</div>
     <div style="flex:1;min-width:0;">
-      <div class="footer-name">{{ user.get_full_name|default:user.username|truncatechars:20 }}</div>
-      <div class="footer-role">{% if user.is_admin %}ผู้ดูแลระบบ{% else %}เจ้าหน้าที่{% endif %}</div>
+      <div class="footer-name">{{ sidebar_name|truncatechars:20 }}</div>
+      <div class="footer-role">{% if user.is_admin %}เจ้าหน้าที่{% else %}อาจารย์{% endif %}</div>
     </div>
+    {% endwith %}
     <form method="post" action="{% url 'logout' %}">
       {% csrf_token %}
       <button type="submit" class="logout-btn" title="ออกจากระบบ">
